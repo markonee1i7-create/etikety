@@ -11,17 +11,32 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
 <style>
-body { font-family: sans-serif; padding: 20px; max-width: 600px; margin: auto; }
-input, button { font-size: 18px; padding: 10px; margin-top: 10px; width: 100%; }
+body { 
+    font-family: sans-serif; 
+    padding: 20px; 
+    max-width: 600px; 
+    margin: auto; 
+}
+
+input, button { 
+    font-size: 18px; 
+    padding: 10px; 
+    margin-top: 10px; 
+    width: 100%; 
+}
+
 button { cursor: pointer; }
+
 .section {
     border: 2px solid #ddd;
     padding: 20px;
     border-radius: 12px;
-    margin-bottom: 25px;
+    margin-bottom: 45px;   /* 🔥 ROZŠÍRENÁ MEDZERA MEDZI BLOKMI */
     background: #fafafa;
 }
+
 .section h3 { margin-top: 0; }
+
 #qr-reader, #qr-reader-vydaj, #qr-reader-inv { margin-top: 20px; }
 
 #last-vydaj-box, #last-inv-box {
@@ -41,6 +56,7 @@ button { cursor: pointer; }
     font-weight: bold;
     text-align: center;
 }
+
 #vydaj-ok { background:#d4ffd4; border:1px solid #7ad67a; }
 #inv-ok { background:#fff4d4; border:1px solid #e6c87a; }
 </style>
@@ -235,7 +251,7 @@ function exportVydajeDoExcelu() {
     alert("Excel súbor vytvorený");
 }
 
-/* ---------------- Odoslanie výdajov mailom ---------------- */
+/* ---------------- Odoslanie výdajov mailom (tabuľka) ---------------- */
 function sendVydajeEmail() {
     let log = JSON.parse(localStorage.getItem("vydajLog") || "[]");
 
@@ -244,14 +260,15 @@ function sendVydajeEmail() {
         return;
     }
 
-    const ws = XLSX.utils.json_to_sheet(log);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Vydaje");
+    let table = "Dátum       | Čas     | Artikl | Žiadateľ | Vydal | Počet\n";
+    table += "-------------------------------------------------------------\n";
 
-    const wbout = XLSX.write(wb, { bookType: "xlsx", type: "base64" });
+    log.forEach(z => {
+        table += `${z.datum.padEnd(12)}| ${z.cas.padEnd(8)}| ${z.artikl.padEnd(7)}| ${z.ziadatel.padEnd(9)}| ${z.vydal.padEnd(6)}| ${z.pocet}\n`;
+    });
 
-    const mail = "mailto:?subject=Výdaje zo skladu&body=V prílohe sú výdaje.%0D%0A&attachment=vydaje.xlsx;base64," + wbout;
-
+    const body = encodeURIComponent(table);
+    const mail = `mailto:?subject=Výdaje zo skladu&body=${body}`;
     window.location.href = mail;
 }
 
@@ -322,7 +339,7 @@ function exportInventura() {
     alert("Inventúra exportovaná");
 }
 
-/* ---------------- Odoslanie inventúry mailom ---------------- */
+/* ---------------- Odoslanie inventúry mailom (tabuľka) ---------------- */
 function sendInventuraEmail() {
     let log = JSON.parse(localStorage.getItem("invLog") || "[]");
 
@@ -331,14 +348,15 @@ function sendInventuraEmail() {
         return;
     }
 
-    const ws = XLSX.utils.json_to_sheet(log);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Inventura");
+    let table = "Dátum       | Čas     | Artikl | Stav | Inventúrnik\n";
+    table += "-----------------------------------------------------\n";
 
-    const wbout = XLSX.write(wb, { bookType: "xlsx", type: "base64" });
+    log.forEach(z => {
+        table += `${z.datum.padEnd(12)}| ${z.cas.padEnd(8)}| ${z.artikl.padEnd(7)}| ${String(z.stav).padEnd(4)}| ${z.inventurnik}\n`;
+    });
 
-    const mail = "mailto:?subject=Inventúra skladu&body=V prílohe je inventúra.%0D%0A&attachment=inventura.xlsx;base64," + wbout;
-
+    const body = encodeURIComponent(table);
+    const mail = `mailto:?subject=Inventúra skladu&body=${body}`;
     window.location.href = mail;
 }
 
