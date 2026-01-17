@@ -4,49 +4,72 @@
 <meta charset="UTF-8">
 <title>QR Etikety – Bluetooth + Výdaj</title>
 
-<!-- QR + Barcode skener -->
 <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
 
 <style>
-body { font-family: sans-serif; padding: 20px; max-width: 500px; margin: auto; }
-input, button { font-size: 20px; padding: 12px; margin-top: 12px; width: 100%; }
+body { font-family: sans-serif; padding: 20px; max-width: 600px; margin: auto; }
+input, button { font-size: 18px; padding: 10px; margin-top: 10px; width: 100%; }
 button { cursor: pointer; }
+.section {
+    border: 2px solid #ddd;
+    padding: 20px;
+    border-radius: 12px;
+    margin-bottom: 25px;
+    background: #fafafa;
+}
+.section h3 {
+    margin-top: 0;
+}
 #qr-reader { margin-top: 20px; }
-.notice { color: red; font-size: 16px; margin-top: 10px; }
+#last-vydaj-box {
+    background: #eef7ff;
+    border: 1px solid #bcdcff;
+    padding: 15px;
+    border-radius: 10px;
+    margin-top: 15px;
+    display: none;
+}
 </style>
 </head>
 
 <body>
 
-<h2>Skenovanie, Tlač a Výdaj</h2>
+<h2>Skladová appka</h2>
 
-<div id="browser-warning" class="notice" style="display:none;">
-Tento prehliadač nepodporuje Bluetooth. Použi Chrome (Android) alebo Safari (iPhone).
+<!-- TLAČ ETIKIET -->
+<div class="section">
+    <h3>🖨️ Tlač etikiet</h3>
+
+    <input id="art" type="text" placeholder="Artiklové číslo">
+
+    <button onclick="startScanner()">📷 Skenovať QR / EAN</button>
+    <div id="qr-reader" style="width:100%; display:none;"></div>
+
+    <button onclick="connectPrinter()">🔵 Pripojiť tlačiareň</button>
+
+    <input id="count" type="number" min="1" value="1" placeholder="Počet etikiet">
+
+    <button onclick="printLabel()">🖨️ Tlačiť etikety</button>
 </div>
 
-<!-- Artikl -->
-<input id="art" type="text" placeholder="Artiklové číslo">
+<!-- VÝDAJ -->
+<div class="section">
+    <h3>📦 Výdaj materiálu</h3>
 
-<!-- QR skener -->
-<button onclick="startScanner()">📷 Skenovať QR / EAN</button>
-<div id="qr-reader" style="width:100%; display:none;"></div>
+    <input id="ziadatel" type="text" placeholder="Žiadateľ">
+    <input id="vydal" type="text" placeholder="Kto vydal">
+    <input id="vydajCount" type="number" min="1" value="1" placeholder="Počet na výdaj">
 
-<!-- Tlač etikety -->
-<button onclick="connectPrinter()">🔵 Pripojiť tlačiareň</button>
-<input id="count" type="number" min="1" value="1" placeholder="Počet etikiet">
-<button onclick="printLabel()">🖨️ Tlačiť etikety</button>
+    <button onclick="vydajMaterial()">📦 Výdaj</button>
 
-<hr>
-
-<h3>Výdaj materiálu</h3>
-
-<input id="ziadatel" type="text" placeholder="Žiadateľ">
-<input id="vydal" type="text" placeholder="Kto vydal">
-<input id="vydajCount" type="number" min="1" value="1" placeholder="Počet na výdaj">
-
-<button onclick="vydajMaterial()">📦 Výdaj</button>
+    <!-- POSLEDNÝ VÝDAJ -->
+    <div id="last-vydaj-box">
+        <h4>Posledný výdaj</h4>
+        <div id="last-vydaj-content"></div>
+    </div>
+</div>
 
 <script>
 let printerCharacteristic = null;
 
-/* ---------------- 
+/* ---------------- Bluetooth pripo 
