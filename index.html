@@ -88,7 +88,8 @@ button { cursor: pointer; }
         <div id="last-vydaj-content"></div>
     </div>
 
-    <button onclick="exportVydajeDoExcelu()">📤 Exportovať všetky výdaje do Excelu</button>
+    <button onclick="exportVydajeDoExcelu()">📤 Exportovať výdaje do Excelu</button>
+    <button onclick="sendVydajeEmail()">📧 Odoslať výdaje mailom</button>
 </div>
 
 <!-- INVENTÚRA -->
@@ -113,6 +114,7 @@ button { cursor: pointer; }
     </div>
 
     <button onclick="exportInventura()">📤 Exportovať inventúru do Excelu</button>
+    <button onclick="sendInventuraEmail()">📧 Odoslať inventúru mailom</button>
 </div>
 
 <script>
@@ -233,6 +235,26 @@ function exportVydajeDoExcelu() {
     alert("Excel súbor vytvorený");
 }
 
+/* ---------------- Odoslanie výdajov mailom ---------------- */
+function sendVydajeEmail() {
+    let log = JSON.parse(localStorage.getItem("vydajLog") || "[]");
+
+    if (log.length === 0) {
+        alert("Žiadne výdaje na odoslanie");
+        return;
+    }
+
+    const ws = XLSX.utils.json_to_sheet(log);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Vydaje");
+
+    const wbout = XLSX.write(wb, { bookType: "xlsx", type: "base64" });
+
+    const mail = "mailto:?subject=Výdaje zo skladu&body=V prílohe sú výdaje.%0D%0A&attachment=vydaje.xlsx;base64," + wbout;
+
+    window.location.href = mail;
+}
+
 /* ---------------- Inventúra ---------------- */
 function ulozInventuru() {
     const art = document.getElementById("art-inv").value.trim();
@@ -298,6 +320,26 @@ function exportInventura() {
     XLSX.writeFile(wb, "inventura.xlsx");
 
     alert("Inventúra exportovaná");
+}
+
+/* ---------------- Odoslanie inventúry mailom ---------------- */
+function sendInventuraEmail() {
+    let log = JSON.parse(localStorage.getItem("invLog") || "[]");
+
+    if (log.length === 0) {
+        alert("Žiadne inventúrne záznamy");
+        return;
+    }
+
+    const ws = XLSX.utils.json_to_sheet(log);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Inventura");
+
+    const wbout = XLSX.write(wb, { bookType: "xlsx", type: "base64" });
+
+    const mail = "mailto:?subject=Inventúra skladu&body=V prílohe je inventúra.%0D%0A&attachment=inventura.xlsx;base64," + wbout;
+
+    window.location.href = mail;
 }
 
 /* ---------------- QR skener – 3 režimy ---------------- */
