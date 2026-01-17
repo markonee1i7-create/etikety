@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>QR Etikety – Bluetooth</title>
+<title>QR Etikety – Bluetooth + Výdaj</title>
 
 <!-- QR + Barcode skener -->
 <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
@@ -18,118 +18,35 @@ button { cursor: pointer; }
 
 <body>
 
-<h2>Tlač QR etikety</h2>
+<h2>Skenovanie, Tlač a Výdaj</h2>
 
 <div id="browser-warning" class="notice" style="display:none;">
 Tento prehliadač nepodporuje Bluetooth. Použi Chrome (Android) alebo Safari (iPhone).
 </div>
 
-<input id="art" type="text" placeholder="Zadaj artiklové číslo">
-<input id="count" type="number" min="1" value="1" placeholder="Počet etikiet">
+<!-- Artikl -->
+<input id="art" type="text" placeholder="Artiklové číslo">
 
+<!-- QR skener -->
 <button onclick="startScanner()">📷 Skenovať QR / EAN</button>
 <div id="qr-reader" style="width:100%; display:none;"></div>
 
+<!-- Tlač etikety -->
 <button onclick="connectPrinter()">🔵 Pripojiť tlačiareň</button>
+<input id="count" type="number" min="1" value="1" placeholder="Počet etikiet">
 <button onclick="printLabel()">🖨️ Tlačiť etikety</button>
+
+<hr>
+
+<h3>Výdaj materiálu</h3>
+
+<input id="ziadatel" type="text" placeholder="Žiadateľ">
+<input id="vydal" type="text" placeholder="Kto vydal">
+<input id="vydajCount" type="number" min="1" value="1" placeholder="Počet na výdaj">
+
+<button onclick="vydajMaterial()">📦 Výdaj</button>
 
 <script>
 let printerCharacteristic = null;
 
-/* ---------------- Detekcia nepodporovaného prehliadača ---------------- */
-window.onload = function() {
-    if (!navigator.bluetooth) {
-        document.getElementById("browser-warning").style.display = "block";
-    }
-
-    // načítanie posledného artiklu
-    const saved = localStorage.getItem("lastArt");
-    if (saved) document.getElementById("art").value = saved;
-};
-
-/* ---------------- Bluetooth pripojenie ---------------- */
-async function connectPrinter() {
-    try {
-        const device = await navigator.bluetooth.requestDevice({
-            filters: [{ namePrefix: "Zebra" }],
-            optionalServices: ["000018f0-0000-1000-8000-00805f9b34fb"]
-        });
-
-        const server = await device.gatt.connect();
-        const service = await server.getPrimaryService("000018f0-0000-1000-8000-00805f9b34fb");
-        printerCharacteristic = await service.getCharacteristic("00002af1-0000-1000-8000-00805f9b34fb");
-
-        alert("Tlačiareň pripojená");
-    } catch (e) {
-        alert("Chyba pripojenia: " + e);
-    }
-}
-
-/* ---------------- Tlač etikety ---------------- */
-async function printLabel() {
-    if (!printerCharacteristic) {
-        alert("Najprv sa pripoj k tlačiarni");
-        return;
-    }
-
-    const art = document.getElementById("art").value.trim();
-    const count = parseInt(document.getElementById("count").value);
-
-    if (!art) {
-        alert("Zadaj artiklové číslo");
-        return;
-    }
-
-    if (count < 1) {
-        alert("Počet musí byť aspoň 1");
-        return;
-    }
-
-    // uloženie posledného artiklu
-    localStorage.setItem("lastArt", art);
-
-    const zpl = `
-^XA
-^FO20,20^BQN,2,5^FDLA,${art}^FS
-^FO20,180^A0N,30,30^FD${art}^FS
-^XZ
-`;
-
-    const encoder = new TextEncoder();
-    const data = encoder.encode(zpl);
-
-    try {
-        for (let i = 0; i < count; i++) {
-            await printerCharacteristic.writeValue(data);
-            await new Promise(r => setTimeout(r, 150)); // malá pauza medzi etiketami
-        }
-        alert("Etikety odoslané: " + count);
-    } catch (e) {
-        alert("Chyba pri odosielaní: " + e);
-    }
-}
-
-/* ---------------- QR + Barcode skener ---------------- */
-function startScanner() {
-    const qrReader = document.getElementById("qr-reader");
-    qrReader.style.display = "block";
-
-    const html5QrCode = new Html5Qrcode("qr-reader");
-
-    html5QrCode.start(
-        { facingMode: "environment" },
-        { fps: 10, qrbox: 250 },
-        qrCodeMessage => {
-            document.getElementById("art").value = qrCodeMessage;
-            localStorage.setItem("lastArt", qrCodeMessage);
-            html5QrCode.stop();
-            qrReader.style.display = "none";
-            alert("Kód načítaný");
-        },
-        errorMessage => {}
-    );
-}
-</script>
-
-</body>
-</html>
+/* ---------------- 
