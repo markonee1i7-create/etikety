@@ -3,10 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <title>QR Etikety – Bluetooth</title>
+
+<!-- QR skener -->
+<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+
 <style>
 body { font-family: sans-serif; padding: 20px; max-width: 500px; margin: auto; }
 input, button { font-size: 20px; padding: 12px; margin-top: 12px; width: 100%; }
 button { cursor: pointer; }
+#qr-reader { margin-top: 20px; }
 </style>
 </head>
 
@@ -16,12 +21,16 @@ button { cursor: pointer; }
 
 <input id="art" type="text" placeholder="Zadaj artiklové číslo">
 
+<button onclick="startScanner()">📷 Skenovať QR kód</button>
+<div id="qr-reader" style="width:100%; display:none;"></div>
+
 <button onclick="connectPrinter()">🔵 Pripojiť tlačiareň</button>
 <button onclick="printLabel()">🖨️ Tlačiť etiketu</button>
 
 <script>
 let printerCharacteristic = null;
 
+/* ---------------- Bluetooth pripojenie ---------------- */
 async function connectPrinter() {
     try {
         const device = await navigator.bluetooth.requestDevice({
@@ -39,6 +48,7 @@ async function connectPrinter() {
     }
 }
 
+/* ---------------- Tlač etikety ---------------- */
 async function printLabel() {
     if (!printerCharacteristic) {
         alert("Najprv sa pripoj k tlačiarni");
@@ -68,7 +78,29 @@ async function printLabel() {
         alert("Chyba pri odosielaní: " + e);
     }
 }
+
+/* ---------------- QR skener ---------------- */
+function startScanner() {
+    const qrReader = document.getElementById("qr-reader");
+    qrReader.style.display = "block";
+
+    const html5QrCode = new Html5Qrcode("qr-reader");
+
+    html5QrCode.start(
+        { facingMode: "environment" },
+        { fps: 10, qrbox: 250 },
+        qrCodeMessage => {
+            document.getElementById("art").value = qrCodeMessage;
+            html5QrCode.stop();
+            qrReader.style.display = "none";
+            alert("QR kód načítaný");
+        },
+        errorMessage => {
+            // ignorujeme priebežné chyby
+        }
+    );
+}
 </script>
 
 </body>
-</html>
+</html> 
