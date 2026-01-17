@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>QR Etikety – Bluetooth</title>
+<style>
+body { font-family: sans-serif; padding: 20px; max-width: 500px; margin: auto; }
+input, button { font-size: 20px; padding: 12px; margin-top: 12px; width: 100%; }
+button { cursor: pointer; }
+</style>
+</head>
+
+<body>
+
+<h2>Tlač QR etikety</h2>
+
+<input id="art" type="text" placeholder="Zadaj artiklové číslo">
+
+<button onclick="connectPrinter()">🔵 Pripojiť tlačiareň</button>
+<button onclick="printLabel()">🖨️ Tlačiť etiketu</button>
+
+<script>
+let printerCharacteristic = null;
+
+async function connectPrinter() {
+    try {
+        const device = await navigator.bluetooth.requestDevice({
+            filters: [{ namePrefix: "Zebra" }],
+            optionalServices: ["000018f0-0000-1000-8000-00805f9b34fb"]
+        });
+
+        const server = await device.gatt.connect();
+        const service = await server.getPrimaryService("000018f0-0000-1000-8000-00805f9b34fb");
+        printerCharacteristic = await service.getCharacteristic("00002af1-0000-1000-8000-00805f9b34fb");
+
+        alert("Tlačiareň pripojená");
+    } catch (e) {
+        alert("Chyba pripojenia: " + e);
+    }
+}
+
+async function printLabel() {
+    if (!printerCharacteristic) {
+        alert("Najprv sa pripoj k tlačiarni");
+        return;
+    }
+
+    const art = document.getElementById("art").value.trim();
+    if (!art) {
+        alert("Zadaj artiklové číslo");
+        return;
+    }
+
+    const zpl = `
+^XA
+^FO20,20^BQN,2,5^FDLA,${art}^FS
+^FO20,180^A0N,30,30^FD${art}^FS
+^XZ
+`;
+
+    const encoder = new TextEncoder();
+    const data = encoder.encode(zpl);
+
+    try {
+        await printerCharacteristic.writeValue(data);
+        alert("Etiketa odoslaná");
+    } catch (e) {
+        alert("Chyba pri odosielaní: " + e);
+    }
+}
+</script>
+
+</body>
+</html>
