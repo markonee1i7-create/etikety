@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <title>QR Etikety – Bluetooth</title>
 
-<!-- QR skener -->
+<!-- QR + Barcode skener -->
 <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
 
 <style>
@@ -12,6 +12,7 @@ body { font-family: sans-serif; padding: 20px; max-width: 500px; margin: auto; }
 input, button { font-size: 20px; padding: 12px; margin-top: 12px; width: 100%; }
 button { cursor: pointer; }
 #qr-reader { margin-top: 20px; }
+.notice { color: red; font-size: 16px; margin-top: 10px; }
 </style>
 </head>
 
@@ -19,16 +20,32 @@ button { cursor: pointer; }
 
 <h2>Tlač QR etikety</h2>
 
-<input id="art" type="text" placeholder="Zadaj artiklové číslo">
+<div id="browser-warning" class="notice" style="display:none;">
+Tento prehliadač nepodporuje Bluetooth. Použi Chrome (Android) alebo Safari (iPhone).
+</div>
 
-<button onclick="startScanner()">📷 Skenovať QR kód</button>
+<input id="art" type="text" placeholder="Zadaj artiklové číslo">
+<input id="count" type="number" min="1" value="1" placeholder="Počet etikiet">
+
+<button onclick="startScanner()">📷 Skenovať QR / EAN</button>
 <div id="qr-reader" style="width:100%; display:none;"></div>
 
 <button onclick="connectPrinter()">🔵 Pripojiť tlačiareň</button>
-<button onclick="printLabel()">🖨️ Tlačiť etiketu</button>
+<button onclick="printLabel()">🖨️ Tlačiť etikety</button>
 
 <script>
 let printerCharacteristic = null;
+
+/* ---------------- Detekcia nepodporovaného prehliadača ---------------- */
+window.onload = function() {
+    if (!navigator.bluetooth) {
+        document.getElementById("browser-warning").style.display = "block";
+    }
+
+    // načítanie posledného artiklu
+    const saved = localStorage.getItem("lastArt");
+    if (saved) document.getElementById("art").value = saved;
+};
 
 /* ---------------- Bluetooth pripojenie ---------------- */
 async function connectPrinter() {
@@ -56,10 +73,20 @@ async function printLabel() {
     }
 
     const art = document.getElementById("art").value.trim();
+    const count = parseInt(document.getElementById("count").value);
+
     if (!art) {
         alert("Zadaj artiklové číslo");
         return;
     }
+
+    if (count < 1) {
+        alert("Počet musí byť aspoň 1");
+        return;
+    }
+
+    // uloženie posledného artiklu
+    localStorage.setItem("lastArt", art);
 
     const zpl = `
 ^XA
@@ -72,14 +99,17 @@ async function printLabel() {
     const data = encoder.encode(zpl);
 
     try {
-        await printerCharacteristic.writeValue(data);
-        alert("Etiketa odoslaná");
+        for (let i = 0; i < count; i++) {
+            await printerCharacteristic.writeValue(data);
+            await new Promise(r => setTimeout(r, 150)); // malá pauza medzi etiketami
+        }
+        alert("Etikety odoslané: " + count);
     } catch (e) {
         alert("Chyba pri odosielaní: " + e);
     }
 }
 
-/* ---------------- QR skener ---------------- */
+/* ---------------- QR + Barcode skener ---------------- */
 function startScanner() {
     const qrReader = document.getElementById("qr-reader");
     qrReader.style.display = "block";
@@ -91,16 +121,15 @@ function startScanner() {
         { fps: 10, qrbox: 250 },
         qrCodeMessage => {
             document.getElementById("art").value = qrCodeMessage;
+            localStorage.setItem("lastArt", qrCodeMessage);
             html5QrCode.stop();
             qrReader.style.display = "none";
-            alert("QR kód načítaný");
+            alert("Kód načítaný");
         },
-        errorMessage => {
-            // ignorujeme priebežné chyby
-        }
+        errorMessage => {}
     );
 }
 </script>
 
 </body>
-</html> 
+</html>
