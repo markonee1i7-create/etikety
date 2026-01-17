@@ -1,39 +1,27 @@
-<!-- INVENTÚRA -->
-<div class="section">
-    <h3>📋 Inventúra</h3>
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Skladová appka – Tlač, Výdaj, Inventúra</title>
 
-    <input id="art-inv" type="text" placeholder="Artiklové číslo pre inventúru">
+<!-- QR skener -->
+<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
 
-    <button onclick="startScanner('inv')">📷 Skenovať pre inventúru</button>
-    <div id="qr-reader-inv" style="width:100%; display:none;"></div>
+<!-- Excel export -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
-    <input id="invCount" type="number" min="0" value="0" placeholder="Aktuálny stav (ks)">
-    <input id="inventurnik" type="text" placeholder="Inventúrnik">
+<style>
+body { font-family: sans-serif; padding: 20px; max-width: 600px; margin: auto; }
+input, button { font-size: 18px; padding: 10px; margin-top: 10px; width: 100%; }
+button { cursor: pointer; }
+.section {
+    border: 2px solid #ddd;
+    padding: 20px;
+    border-radius: 12px;
+    margin-bottom: 25px;
+    background: #fafafa;
+}
+.section h3 { margin-top: 0; }
+#qr-reader, #qr-reader-vydaj, #qr-reader-inv { margin-top: 20px; }
 
-    <button onclick="ulozInventuru()">📋 Uložiť inventúru</button>
-
-    <div id="inv-ok" style="
-        display:none;
-        margin-top:15px;
-        padding:12px;
-        background:#fff4d4;
-        border:1px solid #e6c87a;
-        border-radius:10px;
-        font-weight:bold;
-        text-align:center;">
-        Inventúra uložená
-    </div>
-
-    <div id="last-inv-box" style="
-        background:#f4faff;
-        border:1px solid #cfe7ff;
-        padding:15px;
-        border-radius:10px;
-        margin-top:15px;
-        display:none;">
-        <h4>Posledná inventúra</h4>
-        <div id="last-inv-content"></div>
-    </div>
-
-    <button onclick="exportInventura()">📤 Exportovať inventúru do Excelu</button>
-</div> 
+#last-vyd 
