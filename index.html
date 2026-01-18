@@ -124,6 +124,13 @@ table th {
         <input id="filterDate" type="date" oninput="zobrazTabulku()">
     </div>
 
+    <!-- NOVÝ FILTER ZMENY -->
+    <select id="filterShift" onchange="zobrazTabulku()">
+        <option value="all">Všetko</option>
+        <option value="ranna">Ranná zmena (06:00–18:00)</option>
+        <option value="nocna">Nočná zmena (18:00–06:00)</option>
+    </select>
+
     <table id="vydajTable">
         <thead>
             <tr>
@@ -155,7 +162,6 @@ table th {
 <div id="section-tlac" style="display:none;">
     <h3>🖨️ Tlač etikety</h3>
 
-    <!-- SKENER -->
     <input id="etiketaText" type="text" placeholder="Číslo pre QR kód">
 
     <button onclick="startLabelScanner()">📷 Skenovať QR/EAN</button>
@@ -163,7 +169,6 @@ table th {
 
     <div id="label-qr-reader"></div>
 
-    <!-- VÝBER PRIPOJENIA -->
     <h4>Pripojenie tlačiarne</h4>
 
     <select id="printerMode" onchange="switchPrinterMode()">
@@ -298,7 +303,7 @@ async function connectPrinterLAN() {
     }
 
     try {
-        const response = await fetch(`http://${ip}:9100`, {
+        await fetch(`http://${ip}:9100`, {
             method: "POST",
             body: ""
         });
@@ -371,7 +376,131 @@ async function printLabel() {
     }
 }
 
-/* ---------------- VÝMAZ ---------------- */
+/* ---------------- ULOŽENIE VÝDAJA ---------------- */
+function ulozVydaj() {
+    const art = document.getElementById("art").value.trim();
+    const ziadatel = document.getElementById("ziadatel").value.trim();
+    const vydal = document.getElementById("vydal").value.trim();
+    const pocet = parseInt(document.getElementById("pocet").value);
+
+    if (!art || !ziadatel || !vydal || pocet < 1) {
+        alert("Vyplň všetky údaje");
+        return;
+    }
+
+    const now = new Date();
+    const zaznam = {
+        datum: now.toLocaleDateString(),
+        cas: now.toLocaleTimeString(),
+        artikl: art,
+        pocet: pocet,
+        ziadatel: ziadatel,
+        vydal: vydal
+    };
+
+    let log = JSON.parse(localStorage.getItem("vydajLog") || "[]");
+    log.push(zaznam);
+    localStorage.setItem("vydajLog", JSON.stringify(log));
+
+    zobrazTabulku();
+
+    document.getElementById("art").value = "";
+    document.getElementById("pocet").value = 1;
+}
+
+/* ---------------- TABUĽKA + FILTRE ---------------- */
+function zobrazTabulku() {
+    const tbody = document.querySelector("#vydajTable tbody");
+    tbody.innerHTML = "";
+
+    const filterText = document.getElementById("filterText").value.toLowerCase();
+    const filterDate = document.getElementById("filterDate").value;
+    const filterShift = document.getElementById("filterShift").value;
+
+    let log = JSON.parse(localStorage.getItem("vydajLog") || "[]");
+
+    log.forEach(z => {
+        // TEXT FILTER
+        if (filterText && !JSON.stringify(z).toLowerCase().includes(filterText)) return;
+
+        // DATE FILTER
+        if (filterDate && z.datum !== new Date(filterDate).toLocaleDateString()) return;
+
+        // SHIFT FILTER
+        if (filterShift !== "all") {
+            const [h, m, s] = z.cas.split(":").map(Number);
+            const time = h + m/60;
+
+            if (filterShift === "ranna") {
+                if (time < 6 || time >= 18) return;
+            }
+
+            if (filterShift === "nocna") {
+                if (!(time >= 18 || time < 6)) return;
+            }
+        }
+
+        const row = `
+            <tr>
+                <td>${z.datum}</td>
+                <td>${z.cas}</td>
+                <td>${z.artikl}</td>
+                <td>${z.pocet}</td>
+                <td>${z.ziadatel}</td>
+                <td>${z.vydal}</td>
+            </tr>
+        `;
+        tbody.innerHTML += row;
+    });
+}
+
+/* ---------------- EXCEL EXPORT ---------------- */
+function shareExcel() {
+    let log = JSON.parse(localStorage.getItem("vydajLog") || "[]");
+
+    const filterText = document.getElementById("filterText").value.toLowerCase();
+    const filterDate = document.getElementById("filterDate").value;
+    const filterShift = document.getElementById("filterShift").value;
+
+    let filtered = log.filter(z => {
+        if (filterText && !JSON.stringify(z).toLowerCase().includes(filterText)) return false;
+        if (filterDate && z.datum !== new Date(filterDate).toLocaleDateString()) return false;
+
+        const [h, m, s] = z.cas.split(":").map(Number);
+        const time = h + m/60;
+
+        if (filterShift === "ranna" && (time < 6 || time >= 18)) return false;
+        if (filterShift === "nocna" && !(time >= 18 || time < 6)) return false;
+
+        return true;
+    });
+
+    if (filtered.length === 0) {
+        alert("Žiadne záznamy na export");
+        return;
+    }
+
+    const worksheet = XLSX.utils.json_to_sheet(filtered);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Vydaje");
+
+    const excelBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
+    const file = new File([excelBuffer], "vydaje.xlsx", {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    });
+
+    if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+        navigator.share({
+            title: "Výdaj tovaru",
+            text: "Odfiltrované záznamy vo formáte Excel",
+            files: [file]
+        });
+    } else {
+        alert("Toto zariadenie nepodporuje zdieľanie Excel súborov");
+    }
+}
+
+/* ---------------- VYMAZANIE ---------------- */
 function vymazVsetko() {
     if (confirm("Naozaj chceš vymazať všetky záznamy?")) {
         localStorage.removeItem("vydajLog");
@@ -384,3 +513,4 @@ window.onload = zobrazTabulku;
 
 </body>
 </html>
+``
