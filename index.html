@@ -2,7 +2,7 @@
 <html lang="sk">
 <head>
 <meta charset="UTF-8">
-<title>Výdaj tovaru</title>
+<title>Skladový systém</title>
 
 <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
@@ -11,10 +11,28 @@
 body {
     font-family: Arial, sans-serif;
     padding: 20px;
-    max-width: 700px;
+    max-width: 800px;
     margin: auto;
 }
 
+/* MENU */
+.menu {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.menu button {
+    flex: 1;
+    padding: 12px;
+    background: #e8f0ff;
+    border: 1px solid #b8c6e0;
+    border-radius: 6px;
+    font-size: 18px;
+    cursor: pointer;
+}
+
+/* VŠEOBECNÉ */
 input, button, select {
     width: 100%;
     padding: 12px;
@@ -64,7 +82,21 @@ table th {
 
 <body>
 
-<h2>📦 Výdaj tovaru</h2>
+<h2>📦 Skladový systém</h2>
+
+<!-- NAVIGAČNÉ MENU -->
+<nav class="menu">
+    <button onclick="showSection('vydaj')">Výdaj</button>
+    <button onclick="showSection('tlac')">Tlač etikety</button>
+    <button onclick="showSection('inventura')">Inventúra</button>
+</nav>
+
+<!-- ===========================
+     SEKCIa: VÝDAJ
+=========================== -->
+<div id="section-vydaj">
+
+<h3>📦 Výdaj tovaru</h3>
 
 <input id="art" type="text" placeholder="Artiklové číslo">
 
@@ -91,7 +123,7 @@ table th {
     <h3>📋 Záznamy o výdaji</h3>
 
     <div class="filter-box">
-        <input id="filterText" type="text" placeholder="Filtrovať text (artikl, žiadateľ...)"
+        <input id="filterText" type="text" placeholder="Filtrovať text"
                oninput="zobrazTabulku()">
         <input id="filterDate" type="date" oninput="zobrazTabulku()">
     </div>
@@ -110,15 +142,7 @@ table th {
         <tbody></tbody>
     </table>
 
-    <button onclick="shareToTeams()" style="margin-top:20px; background:#d9eaff;">
-        📤 Zdieľať textovo do Teams
-    </button>
-
-    <button onclick="shareTableToTeams()" style="margin-top:10px; background:#cfe8ff;">
-        📤 Zdieľať tabuľku do Teams
-    </button>
-
-    <button onclick="shareExcel()" style="margin-top:10px; background:#b7e4c7;">
+    <button onclick="shareExcel()" style="margin-top:20px; background:#b7e4c7;">
         📤 Zdieľať Excel
     </button>
 
@@ -127,7 +151,34 @@ table th {
     </button>
 </div>
 
+</div>
+
+<!-- ===========================
+     SEKCIa: TLAČ ETIKETY
+=========================== -->
+<div id="section-tlac" style="display:none;">
+    <h3>🖨️ Tlač etikety</h3>
+    <p>Sem doplníme generovanie ZPL, výber šablóny, tlač cez LAN/WiFi.</p>
+</div>
+
+<!-- ===========================
+     SEKCIa: INVENTÚRA
+=========================== -->
+<div id="section-inventura" style="display:none;">
+    <h3>📋 Inventúra</h3>
+    <p>Tu môže byť skener + počítanie + export do Excelu.</p>
+</div>
+
 <script>
+/* ---------------- MENU PREPÍNANIE ---------------- */
+function showSection(name) {
+    document.getElementById("section-vydaj").style.display = "none";
+    document.getElementById("section-tlac").style.display = "none";
+    document.getElementById("section-inventura").style.display = "none";
+
+    document.getElementById("section-" + name).style.display = "block";
+}
+
 /* ---------------- QR SKENER ---------------- */
 let qrScanner = null;
 
@@ -215,90 +266,6 @@ function zobrazTabulku() {
         `;
         tbody.innerHTML += row;
     });
-}
-
-/* ---------------- ZDIEĽANIE DO TEAMS (TEXT) ---------------- */
-function shareToTeams() {
-    let log = JSON.parse(localStorage.getItem("vydajLog") || "[]");
-
-    const filterText = document.getElementById("filterText").value.toLowerCase();
-    const filterDate = document.getElementById("filterDate").value;
-
-    let filtered = log.filter(z => {
-        if (filterText && !JSON.stringify(z).toLowerCase().includes(filterText)) return false;
-        if (filterDate && z.datum !== new Date(filterDate).toLocaleDateString()) return false;
-        return true;
-    });
-
-    if (filtered.length === 0) {
-        alert("Žiadne záznamy na zdieľanie");
-        return;
-    }
-
-    let message = "📦 Výdaj tovaru – odfiltrované záznamy:\n\n";
-    filtered.forEach(z => {
-        message += `${z.datum} ${z.cas} | ${z.artikl} | ${z.pocet} ks | ${z.ziadatel} | ${z.vydal}\n`;
-    });
-
-    if (navigator.share) {
-        navigator.share({
-            title: "Výdaj tovaru",
-            text: message
-        });
-        return;
-    }
-
-    const encoded = encodeURIComponent(message);
-    window.open(`https://teams.microsoft.com/share?text=${encoded}`, "_blank");
-}
-
-/* ---------------- ZDIEĽANIE DO TEAMS (TABUĽKA) ---------------- */
-function shareTableToTeams() {
-    let log = JSON.parse(localStorage.getItem("vydajLog") || "[]");
-
-    const filterText = document.getElementById("filterText").value.toLowerCase();
-    const filterDate = document.getElementById("filterDate").value;
-
-    let filtered = log.filter(z => {
-        if (filterText && !JSON.stringify(z).toLowerCase().includes(filterText)) return false;
-        if (filterDate && z.datum !== new Date(filterDate).toLocaleDateString()) return false;
-        return true;
-    });
-
-    if (filtered.length === 0) {
-        alert("Žiadne záznamy na zdieľanie");
-        return;
-    }
-
-    let table = `
-        <table border="1" style="border-collapse:collapse;">
-            <tr>
-                <th>Dátum</th>
-                <th>Čas</th>
-                <th>Artikl</th>
-                <th>Počet</th>
-                <th>Žiadateľ</th>
-                <th>Vydal</th>
-            </tr>
-    `;
-
-    filtered.forEach(z => {
-        table += `
-            <tr>
-                <td>${z.datum}</td>
-                <td>${z.cas}</td>
-                <td>${z.artikl}</td>
-                <td>${z.pocet}</td>
-                <td>${z.ziadatel}</td>
-                <td>${z.vydal}</td>
-            </tr>
-        `;
-    });
-
-    table += "</table>";
-
-    const encoded = encodeURIComponent(table);
-    window.open(`https://teams.microsoft.com/share?html=${encoded}`, "_blank");
 }
 
 /* ---------------- ZDIEĽANIE EXCELU ---------------- */
