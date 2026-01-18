@@ -106,14 +106,7 @@ table th {
 <div id="qr-reader"></div>
 
 <input id="ziadatel" type="text" placeholder="Žiadateľ">
-
-<select id="vydal">
-    <option value="">-- Vyber meno --</option>
-    <option value="rpetrik">rpetrik</option>
-    <option value="sbobak">sbobak</option>
-    <option value="aolejka">aolejka</option>
-    <option value="khalamko">khalamko</option>
-</select>
+<input id="vydal" type="text" placeholder="Vydal">
 
 <input id="pocet" type="number" min="1" value="1" placeholder="Počet ks">
 
@@ -158,7 +151,13 @@ table th {
 =========================== -->
 <div id="section-tlac" style="display:none;">
     <h3>🖨️ Tlač etikety</h3>
-    <p>Sem doplníme generovanie ZPL, výber šablóny, tlač cez LAN/WiFi.</p>
+
+    <input id="etiketaText" type="text" placeholder="Číslo pre QR kód">
+
+    <button onclick="connectPrinter()">🔌 Pripojiť tlačiareň</button>
+    <button onclick="printLabel()">🖨️ Vytlačiť etiketu</button>
+
+    <p id="printerStatus" style="margin-top:10px; color:#555;"></p>
 </div>
 
 <!-- ===========================
@@ -304,6 +303,54 @@ function shareExcel() {
     } else {
         alert("Toto zariadenie nepodporuje zdieľanie Excel súborov");
     }
+}
+
+/* ---------------- TLAČ ETIKETY (USB + ZPL) ---------------- */
+let zebraDevice = null;
+
+async function connectPrinter() {
+    try {
+        zebraDevice = await navigator.usb.requestDevice({
+            filters: [{ vendorId: 0x0A5F }]
+        });
+
+        await zebraDevice.open();
+        await zebraDevice.selectConfiguration(1);
+        await zebraDevice.claimInterface(0);
+
+        document.getElementById("printerStatus").innerText =
+            "Tlačiareň pripojená ✔";
+    } catch (e) {
+        document.getElementById("printerStatus").innerText =
+            "Nepodarilo sa pripojiť k tlačiarni";
+    }
+}
+
+async function printLabel() {
+    if (!zebraDevice) {
+        alert("Najprv pripoj tlačiareň");
+        return;
+    }
+
+    const data = document.getElementById("etiketaText").value.trim();
+    if (!data) {
+        alert("Zadaj číslo pre QR kód");
+        return;
+    }
+
+    const zpl = `
+^XA
+^FO50,50^BQN,2,6^FDLA,${data}^FS
+^FO50,300^A0N,60,60^FD${data}^FS
+^XZ`;
+
+    const encoder = new TextEncoder();
+    const zplBytes = encoder.encode(zpl);
+
+    await zebraDevice.transferOut(1, zplBytes);
+
+    document.getElementById("printerStatus").innerText =
+        "Etiketa vytlačená ✔";
 }
 
 /* ---------------- VYMAZANIE ---------------- */
