@@ -98,6 +98,10 @@ table th {
         <tbody></tbody>
     </table>
 
+    <button onclick="shareToTeams()" style="margin-top:20px; background:#d9eaff;">
+        📤 Zdieľať do Teams
+    </button>
+
     <button onclick="vymazVsetko()" style="margin-top:20px; background:#ffdddd;">
         ❌ Vymazať všetky záznamy
     </button>
@@ -182,6 +186,41 @@ function zobrazTabulku() {
     });
 }
 
+/* ---------------- ZDIEĽANIE DO TEAMS ---------------- */
+function shareToTeams() {
+    let log = JSON.parse(localStorage.getItem("vydajLog") || "[]");
+
+    const filterText = document.getElementById("filterText").value.toLowerCase();
+    const filterDate = document.getElementById("filterDate").value;
+
+    let filtered = log.filter(z => {
+        if (filterText && !JSON.stringify(z).toLowerCase().includes(filterText)) return false;
+        if (filterDate && z.datum !== new Date(filterDate).toLocaleDateString()) return false;
+        return true;
+    });
+
+    if (filtered.length === 0) {
+        alert("Žiadne záznamy na zdieľanie");
+        return;
+    }
+
+    let message = "📦 Výdaj tovaru – odfiltrované záznamy:\n\n";
+    filtered.forEach(z => {
+        message += `${z.datum} ${z.cas} | ${z.artikl} | ${z.pocet} ks | ${z.ziadatel} | ${z.vydal}\n`;
+    });
+
+    if (navigator.share) {
+        navigator.share({
+            title: "Výdaj tovaru",
+            text: message
+        });
+        return;
+    }
+
+    const encoded = encodeURIComponent(message);
+    window.open(`https://teams.microsoft.com/share?text=${encoded}`, "_blank");
+}
+
 /* ---------------- VYMAZANIE ---------------- */
 function vymazVsetko() {
     if (confirm("Naozaj chceš vymazať všetky záznamy?")) {
@@ -194,4 +233,4 @@ window.onload = zobrazTabulku;
 </script>
 
 </body>
-</html> 
+</html>
