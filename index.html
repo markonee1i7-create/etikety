@@ -1,194 +1,135 @@
 <!DOCTYPE html>
-<html>
+<html lang="sk">
 <head>
 <meta charset="UTF-8">
-<title>Skladová appka – Tlač, Výdaj, Inventúra</title>
+<title>Výdaj tovaru</title>
 
-<!-- QR skener -->
 <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
 
-<!-- Excel export -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-
 <style>
-body { 
-    font-family: sans-serif; 
-    padding: 20px; 
-    max-width: 600px; 
-    margin: auto; 
+body {
+    font-family: Arial, sans-serif;
+    padding: 20px;
+    max-width: 700px;
+    margin: auto;
 }
 
-input, button { 
-    font-size: 18px; 
-    padding: 10px; 
-    margin-top: 10px; 
-    width: 100%; 
+input, button {
+    width: 100%;
+    padding: 12px;
+    margin-top: 10px;
+    font-size: 18px;
 }
 
 button { cursor: pointer; }
 
-.section {
-    border: 2px solid #ddd;
-    padding: 20px;
-    border-radius: 12px;
-    margin-bottom: 45px;   /* 🔥 ROZŠÍRENÁ MEDZERA MEDZI BLOKMI */
+#qr-reader { margin-top: 20px; display: none; }
+
+.table-container {
+    margin-top: 40px;
+    border: 1px solid #ccc;
+    padding: 15px;
+    border-radius: 10px;
     background: #fafafa;
 }
 
-.section h3 { margin-top: 0; }
-
-#qr-reader, #qr-reader-vydaj, #qr-reader-inv { margin-top: 20px; }
-
-#last-vydaj-box, #last-inv-box {
-    background: #eef7ff;
-    border: 1px solid #bcdcff;
-    padding: 15px;
-    border-radius: 10px;
+table {
+    width: 100%;
+    border-collapse: collapse;
     margin-top: 15px;
-    display: none;
 }
 
-#vydaj-ok, #inv-ok {
-    display: none;
-    margin-top: 15px;
-    padding: 12px;
-    border-radius: 10px;
-    font-weight: bold;
-    text-align: center;
+table th, table td {
+    border: 1px solid #ddd;
+    padding: 8px;
+    text-align: left;
 }
 
-#vydaj-ok { background:#d4ffd4; border:1px solid #7ad67a; }
-#inv-ok { background:#fff4d4; border:1px solid #e6c87a; }
+table th {
+    background: #e8f0ff;
+}
+
+.filter-box {
+    margin-top: 20px;
+    display: flex;
+    gap: 10px;
+}
+
+.filter-box input {
+    flex: 1;
+}
 </style>
 </head>
 
 <body>
 
-<h2>Skladová appka</h2>
+<h2>📦 Výdaj tovaru</h2>
 
-<!-- TLAČ ETIKIET -->
-<div class="section">
-    <h3>🖨️ Tlač etikiet</h3>
+<input id="art" type="text" placeholder="Artiklové číslo">
+<button onclick="startScanner()">📷 Skenovať QR/EAN</button>
+<div id="qr-reader"></div>
 
-    <input id="art" type="text" placeholder="Artiklové číslo">
+<input id="ziadatel" type="text" placeholder="Žiadateľ">
+<input id="vydal" type="text" placeholder="Vydal">
+<input id="pocet" type="number" min="1" value="1" placeholder="Počet ks">
 
-    <button onclick="startScanner('print')">📷 Skenovať QR / EAN</button>
-    <div id="qr-reader" style="width:100%; display:none;"></div>
+<button onclick="ulozVydaj()">💾 Uložiť výdaj</button>
 
-    <button onclick="connectPrinter()">🔵 Pripojiť tlačiareň</button>
+<div class="table-container">
+    <h3>📋 Záznamy o výdaji</h3>
 
-    <input id="count" type="number" min="1" value="1" placeholder="Počet etikiet">
-
-    <button onclick="printLabel()">🖨️ Tlačiť etikety</button>
-</div>
-
-<!-- VÝDAJ -->
-<div class="section">
-    <h3>📦 Výdaj materiálu</h3>
-
-    <input id="art-vydaj" type="text" placeholder="Artiklové číslo pre výdaj">
-
-    <button onclick="startScanner('vydaj')">📷 Skenovať pre výdaj</button>
-    <div id="qr-reader-vydaj" style="width:100%; display:none;"></div>
-
-    <input id="ziadatel" type="text" placeholder="Žiadateľ">
-    <input id="vydal" type="text" placeholder="Kto vydal">
-    <input id="vydajCount" type="number" min="1" value="1" placeholder="Počet na výdaj">
-
-    <button onclick="vydajMaterial()">📦 Výdaj</button>
-
-    <div id="vydaj-ok">Výdaj úspešný</div>
-
-    <div id="last-vydaj-box">
-        <h4>Posledný výdaj</h4>
-        <div id="last-vydaj-content"></div>
+    <div class="filter-box">
+        <input id="filterText" type="text" placeholder="Filtrovať text (artikl, žiadateľ...)"
+               oninput="zobrazTabulku()">
+        <input id="filterDate" type="date" oninput="zobrazTabulku()">
     </div>
 
-    <button onclick="exportVydajeDoExcelu()">📤 Exportovať výdaje do Excelu</button>
-    <button onclick="sendVydajeEmail()">📧 Odoslať výdaje mailom</button>
-</div>
+    <table id="vydajTable">
+        <thead>
+            <tr>
+                <th>Dátum</th>
+                <th>Čas</th>
+                <th>Artikl</th>
+                <th>Počet</th>
+                <th>Žiadateľ</th>
+                <th>Vydal</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
 
-<!-- INVENTÚRA -->
-<div class="section">
-    <h3>📋 Inventúra</h3>
-
-    <input id="art-inv" type="text" placeholder="Artiklové číslo pre inventúru">
-
-    <button onclick="startScanner('inv')">📷 Skenovať pre inventúru</button>
-    <div id="qr-reader-inv" style="width:100%; display:none;"></div>
-
-    <input id="invCount" type="number" min="0" value="0" placeholder="Aktuálny stav (ks)">
-    <input id="inventurnik" type="text" placeholder="Inventúrnik">
-
-    <button onclick="ulozInventuru()">📋 Uložiť inventúru</button>
-
-    <div id="inv-ok">Inventúra uložená</div>
-
-    <div id="last-inv-box">
-        <h4>Posledná inventúra</h4>
-        <div id="last-inv-content"></div>
-    </div>
-
-    <button onclick="exportInventura()">📤 Exportovať inventúru do Excelu</button>
-    <button onclick="sendInventuraEmail()">📧 Odoslať inventúru mailom</button>
+    <button onclick="vymazVsetko()" style="margin-top:20px; background:#ffdddd;">
+        ❌ Vymazať všetky záznamy
+    </button>
 </div>
 
 <script>
-let printerCharacteristic = null;
+/* ---------------- QR SKENER ---------------- */
+function startScanner() {
+    const reader = document.getElementById("qr-reader");
+    reader.style.display = "block";
 
-/* ---------------- Bluetooth pripojenie ---------------- */
-async function connectPrinter() {
-    try {
-        const device = await navigator.bluetooth.requestDevice({
-            filters: [{ namePrefix: "Zebra" }],
-            optionalServices: ["000018f0-0000-1000-8000-00805f9b34fb"]
-        });
+    const qr = new Html5Qrcode("qr-reader");
 
-        const server = await device.gatt.connect();
-        const service = await server.getPrimaryService("000018f0-0000-1000-8000-00805f9b34fb");
-        printerCharacteristic = await service.getCharacteristic("00002af1-0000-1000-8000-00805f9b34fb");
-
-        alert("Tlačiareň pripojená");
-    } catch (e) {
-        alert("Chyba pripojenia: " + e);
-    }
+    qr.start(
+        { facingMode: "environment" },
+        { fps: 10, qrbox: 250 },
+        decoded => {
+            document.getElementById("art").value = decoded;
+            qr.stop();
+            reader.style.display = "none";
+        }
+    );
 }
 
-/* ---------------- Tlač etikety ---------------- */
-async function printLabel() {
-    if (!printerCharacteristic) { alert("Najprv sa pripoj k tlačiarni"); return; }
-
+/* ---------------- ULOŽENIE VÝDAJA ---------------- */
+function ulozVydaj() {
     const art = document.getElementById("art").value.trim();
-    const count = parseInt(document.getElementById("count").value);
-
-    if (!art) { alert("Zadaj artiklové číslo"); return; }
-
-    const zpl = `
-^XA
-^FO20,20^BQN,2,5^FDLA,${art}^FS
-^FO20,180^A0N,30,30^FD${art}^FS
-^XZ
-`;
-
-    const encoder = new TextEncoder();
-    const data = encoder.encode(zpl);
-
-    for (let i = 0; i < count; i++) {
-        await printerCharacteristic.writeValue(data);
-        await new Promise(r => setTimeout(r, 150));
-    }
-
-    alert("Etikety vytlačené");
-}
-
-/* ---------------- Výdaj ---------------- */
-function vydajMaterial() {
-    const art = document.getElementById("art-vydaj").value.trim();
-    const count = parseInt(document.getElementById("vydajCount").value);
     const ziadatel = document.getElementById("ziadatel").value.trim();
     const vydal = document.getElementById("vydal").value.trim();
+    const pocet = parseInt(document.getElementById("pocet").value);
 
-    if (!art || !ziadatel || !vydal || count < 1) {
+    if (!art || !ziadatel || !vydal || pocet < 1) {
         alert("Vyplň všetky údaje");
         return;
     }
@@ -198,206 +139,59 @@ function vydajMaterial() {
         datum: now.toLocaleDateString(),
         cas: now.toLocaleTimeString(),
         artikl: art,
+        pocet: pocet,
         ziadatel: ziadatel,
-        vydal: vydal,
-        pocet: count
+        vydal: vydal
     };
 
     let log = JSON.parse(localStorage.getItem("vydajLog") || "[]");
     log.push(zaznam);
     localStorage.setItem("vydajLog", JSON.stringify(log));
 
-    localStorage.setItem("lastVydaj", JSON.stringify(zaznam));
-    zobrazPoslednyVydaj();
+    zobrazTabulku();
 
-    const ok = document.getElementById("vydaj-ok");
-    ok.style.display = "block";
-    setTimeout(() => ok.style.display = "none", 2500);
+    document.getElementById("art").value = "";
+    document.getElementById("pocet").value = 1;
 }
 
-/* ---------------- Posledný výdaj ---------------- */
-function zobrazPoslednyVydaj() {
-    const data = localStorage.getItem("lastVydaj");
-    if (!data) return;
+/* ---------------- TABUĽKA ---------------- */
+function zobrazTabulku() {
+    const tbody = document.querySelector("#vydajTable tbody");
+    tbody.innerHTML = "";
 
-    const z = JSON.parse(data);
+    const filterText = document.getElementById("filterText").value.toLowerCase();
+    const filterDate = document.getElementById("filterDate").value;
 
-    document.getElementById("last-vydaj-content").innerHTML = `
-        <b>Dátum:</b> ${z.datum}<br>
-        <b>Čas:</b> ${z.cas}<br>
-        <b>Artikl:</b> ${z.artikl}<br>
-        <b>Žiadateľ:</b> ${z.ziadatel}<br>
-        <b>Vydal:</b> ${z.vydal}<br>
-        <b>Počet:</b> ${z.pocet} ks
-    `;
-
-    document.getElementById("last-vydaj-box").style.display = "block";
-}
-
-/* ---------------- Export výdajov ---------------- */
-function exportVydajeDoExcelu() {
     let log = JSON.parse(localStorage.getItem("vydajLog") || "[]");
 
-    if (log.length === 0) {
-        alert("Žiadne výdaje na export");
-        return;
-    }
-
-    const ws = XLSX.utils.json_to_sheet(log);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Vydaje");
-    XLSX.writeFile(wb, "vydaje.xlsx");
-
-    alert("Excel súbor vytvorený");
-}
-
-/* ---------------- Odoslanie výdajov mailom (tabuľka) ---------------- */
-function sendVydajeEmail() {
-    let log = JSON.parse(localStorage.getItem("vydajLog") || "[]");
-
-    if (log.length === 0) {
-        alert("Žiadne výdaje na odoslanie");
-        return;
-    }
-
-    let table = "Dátum       | Čas     | Artikl | Žiadateľ | Vydal | Počet\n";
-    table += "-------------------------------------------------------------\n";
-
     log.forEach(z => {
-        table += `${z.datum.padEnd(12)}| ${z.cas.padEnd(8)}| ${z.artikl.padEnd(7)}| ${z.ziadatel.padEnd(9)}| ${z.vydal.padEnd(6)}| ${z.pocet}\n`;
+        if (filterText && !JSON.stringify(z).toLowerCase().includes(filterText)) return;
+        if (filterDate && z.datum !== new Date(filterDate).toLocaleDateString()) return;
+
+        const row = `
+            <tr>
+                <td>${z.datum}</td>
+                <td>${z.cas}</td>
+                <td>${z.artikl}</td>
+                <td>${z.pocet}</td>
+                <td>${z.ziadatel}</td>
+                <td>${z.vydal}</td>
+            </tr>
+        `;
+        tbody.innerHTML += row;
     });
-
-    const body = encodeURIComponent(table);
-    const mail = `mailto:?subject=Výdaje zo skladu&body=${body}`;
-    window.location.href = mail;
 }
 
-/* ---------------- Inventúra ---------------- */
-function ulozInventuru() {
-    const art = document.getElementById("art-inv").value.trim();
-    const count = parseInt(document.getElementById("invCount").value);
-    const inventurnik = document.getElementById("inventurnik").value.trim();
-
-    if (!art || !inventurnik || count < 0) {
-        alert("Vyplň všetky údaje pre inventúru");
-        return;
+/* ---------------- VYMAZANIE ---------------- */
+function vymazVsetko() {
+    if (confirm("Naozaj chceš vymazať všetky záznamy?")) {
+        localStorage.removeItem("vydajLog");
+        zobrazTabulku();
     }
-
-    const now = new Date();
-    const zaznam = {
-        datum: now.toLocaleDateString(),
-        cas: now.toLocaleTimeString(),
-        artikl: art,
-        stav: count,
-        inventurnik: inventurnik
-    };
-
-    let log = JSON.parse(localStorage.getItem("invLog") || "[]");
-    log.push(zaznam);
-    localStorage.setItem("invLog", JSON.stringify(log));
-
-    localStorage.setItem("lastInv", JSON.stringify(zaznam));
-    zobrazPoslednuInventuru();
-
-    const ok = document.getElementById("inv-ok");
-    ok.style.display = "block";
-    setTimeout(() => ok.style.display = "none", 2500);
 }
 
-/* ---------------- Posledná inventúra ---------------- */
-function zobrazPoslednuInventuru() {
-    const data = localStorage.getItem("lastInv");
-    if (!data) return;
-
-    const z = JSON.parse(data);
-
-    document.getElementById("last-inv-content").innerHTML = `
-        <b>Dátum:</b> ${z.datum}<br>
-        <b>Čas:</b> ${z.cas}<br>
-        <b>Artikl:</b> ${z.artikl}<br>
-        <b>Stav:</b> ${z.stav} ks<br>
-        <b>Inventúrnik:</b> ${z.inventurnik}
-    `;
-
-    document.getElementById("last-inv-box").style.display = "block";
-}
-
-/* ---------------- Export inventúry ---------------- */
-function exportInventura() {
-    let log = JSON.parse(localStorage.getItem("invLog") || "[]");
-
-    if (log.length === 0) {
-        alert("Žiadne inventúrne záznamy");
-        return;
-    }
-
-    const ws = XLSX.utils.json_to_sheet(log);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Inventura");
-    XLSX.writeFile(wb, "inventura.xlsx");
-
-    alert("Inventúra exportovaná");
-}
-
-/* ---------------- Odoslanie inventúry mailom (tabuľka) ---------------- */
-function sendInventuraEmail() {
-    let log = JSON.parse(localStorage.getItem("invLog") || "[]");
-
-    if (log.length === 0) {
-        alert("Žiadne inventúrne záznamy");
-        return;
-    }
-
-    let table = "Dátum       | Čas     | Artikl | Stav | Inventúrnik\n";
-    table += "-----------------------------------------------------\n";
-
-    log.forEach(z => {
-        table += `${z.datum.padEnd(12)}| ${z.cas.padEnd(8)}| ${z.artikl.padEnd(7)}| ${String(z.stav).padEnd(4)}| ${z.inventurnik}\n`;
-    });
-
-    const body = encodeURIComponent(table);
-    const mail = `mailto:?subject=Inventúra skladu&body=${body}`;
-    window.location.href = mail;
-}
-
-/* ---------------- QR skener – 3 režimy ---------------- */
-function startScanner(mode) {
-    let targetInput = null;
-    let readerDiv = null;
-
-    if (mode === "print") {
-        targetInput = document.getElementById("art");
-        readerDiv = document.getElementById("qr-reader");
-    }
-    else if (mode === "vydaj") {
-        targetInput = document.getElementById("art-vydaj");
-        readerDiv = document.getElementById("qr-reader-vydaj");
-    }
-    else if (mode === "inv") {
-        targetInput = document.getElementById("art-inv");
-        readerDiv = document.getElementById("qr-reader-inv");
-    }
-
-    readerDiv.style.display = "block";
-
-    const html5QrCode = new Html5Qrcode(readerDiv.id);
-
-    html5QrCode.start(
-        { facingMode: "environment" },
-        { fps: 10, qrbox: 250 },
-        qrCodeMessage => {
-            targetInput.value = qrCodeMessage;
-            html5QrCode.stop();
-            readerDiv.style.display = "none";
-        }
-    );
-}
-
-window.onload = function() {
-    zobrazPoslednyVydaj();
-    zobrazPoslednuInventuru();
-};
+window.onload = zobrazTabulku;
 </script>
 
 </body>
-</html>
+</html> 
