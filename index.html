@@ -66,7 +66,10 @@ table th {
 <h2>📦 Výdaj tovaru</h2>
 
 <input id="art" type="text" placeholder="Artiklové číslo">
+
 <button onclick="startScanner()">📷 Skenovať QR/EAN</button>
+<button onclick="stopScanner()" style="background:#ffe4e4;">⛔ Vypnúť kameru</button>
+
 <div id="qr-reader"></div>
 
 <input id="ziadatel" type="text" placeholder="Žiadateľ">
@@ -99,7 +102,11 @@ table th {
     </table>
 
     <button onclick="shareToTeams()" style="margin-top:20px; background:#d9eaff;">
-        📤 Zdieľať do Teams
+        📤 Zdieľať textovo do Teams
+    </button>
+
+    <button onclick="shareTableToTeams()" style="margin-top:10px; background:#cfe8ff;">
+        📤 Zdieľať tabuľku do Teams
     </button>
 
     <button onclick="vymazVsetko()" style="margin-top:20px; background:#ffdddd;">
@@ -109,21 +116,32 @@ table th {
 
 <script>
 /* ---------------- QR SKENER ---------------- */
+let qrScanner = null;
+
 function startScanner() {
     const reader = document.getElementById("qr-reader");
     reader.style.display = "block";
 
-    const qr = new Html5Qrcode("qr-reader");
+    qrScanner = new Html5Qrcode("qr-reader");
 
-    qr.start(
+    qrScanner.start(
         { facingMode: "environment" },
         { fps: 10, qrbox: 250 },
         decoded => {
             document.getElementById("art").value = decoded;
-            qr.stop();
-            reader.style.display = "none";
+            stopScanner();
         }
     );
+}
+
+function stopScanner() {
+    const reader = document.getElementById("qr-reader");
+    reader.style.display = "none";
+
+    if (qrScanner) {
+        qrScanner.stop();
+        qrScanner = null;
+    }
 }
 
 /* ---------------- ULOŽENIE VÝDAJA ---------------- */
@@ -186,7 +204,7 @@ function zobrazTabulku() {
     });
 }
 
-/* ---------------- ZDIEĽANIE DO TEAMS ---------------- */
+/* ---------------- ZDIEĽANIE DO TEAMS (TEXT) ---------------- */
 function shareToTeams() {
     let log = JSON.parse(localStorage.getItem("vydajLog") || "[]");
 
@@ -219,6 +237,55 @@ function shareToTeams() {
 
     const encoded = encodeURIComponent(message);
     window.open(`https://teams.microsoft.com/share?text=${encoded}`, "_blank");
+}
+
+/* ---------------- ZDIEĽANIE DO TEAMS (TABUĽKA) ---------------- */
+function shareTableToTeams() {
+    let log = JSON.parse(localStorage.getItem("vydajLog") || "[]");
+
+    const filterText = document.getElementById("filterText").value.toLowerCase();
+    const filterDate = document.getElementById("filterDate").value;
+
+    let filtered = log.filter(z => {
+        if (filterText && !JSON.stringify(z).toLowerCase().includes(filterText)) return false;
+        if (filterDate && z.datum !== new Date(filterDate).toLocaleDateString()) return false;
+        return true;
+    });
+
+    if (filtered.length === 0) {
+        alert("Žiadne záznamy na zdieľanie");
+        return;
+    }
+
+    let table = `
+        <table border="1" style="border-collapse:collapse;">
+            <tr>
+                <th>Dátum</th>
+                <th>Čas</th>
+                <th>Artikl</th>
+                <th>Počet</th>
+                <th>Žiadateľ</th>
+                <th>Vydal</th>
+            </tr>
+    `;
+
+    filtered.forEach(z => {
+        table += `
+            <tr>
+                <td>${z.datum}</td>
+                <td>${z.cas}</td>
+                <td>${z.artikl}</td>
+                <td>${z.pocet}</td>
+                <td>${z.ziadatel}</td>
+                <td>${z.vydal}</td>
+            </tr>
+        `;
+    });
+
+    table += "</table>";
+
+    const encoded = encodeURIComponent(table);
+    window.open(`https://teams.microsoft.com/share?html=${encoded}`, "_blank");
 }
 
 /* ---------------- VYMAZANIE ---------------- */
