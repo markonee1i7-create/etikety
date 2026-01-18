@@ -42,7 +42,10 @@ input, button, select {
 
 button { cursor: pointer; }
 
-#qr-reader { margin-top: 20px; display: none; }
+#qr-reader, #label-qr-reader {
+    margin-top: 20px;
+    display: none;
+}
 
 .table-container {
     margin-top: 40px;
@@ -152,12 +155,29 @@ table th {
 <div id="section-tlac" style="display:none;">
     <h3>🖨️ Tlač etikety</h3>
 
+    <!-- SKENER -->
     <input id="etiketaText" type="text" placeholder="Číslo pre QR kód">
 
-    <button onclick="connectPrinter()">🔌 Pripojiť tlačiareň</button>
-    <button onclick="printLabel()">🖨️ Vytlačiť etiketu</button>
+    <button onclick="startLabelScanner()">📷 Skenovať QR/EAN</button>
+    <button onclick="stopLabelScanner()" style="background:#ffe4e4;">⛔ Vypnúť kameru</button>
 
+    <div id="label-qr-reader"></div>
+
+    <!-- VÝBER PRIPOJENIA -->
+    <h4>Pripojenie tlačiarne</h4>
+
+    <select id="printerMode" onchange="switchPrinterMode()">
+        <option value="usb">USB (WebUSB)</option>
+        <option value="lan">LAN (IP adresa)</option>
+    </select>
+
+    <input id="printerIP" type="text" placeholder="IP adresa tlačiarne"
+           style="display:none;">
+
+    <button onclick="connectPrinter()">🔌 Pripojiť tlačiareň</button>
     <p id="printerStatus" style="margin-top:10px; color:#555;"></p>
+
+    <button onclick="printLabel()">🖨️ Vytlačiť etiketu</button>
 </div>
 
 <!-- ===========================
@@ -178,7 +198,7 @@ function showSection(name) {
     document.getElementById("section-" + name).style.display = "block";
 }
 
-/* ---------------- QR SKENER ---------------- */
+/* ---------------- QR SKENER (VÝDAJ) ---------------- */
 let qrScanner = null;
 
 function startScanner() {
@@ -207,108 +227,51 @@ function stopScanner() {
     }
 }
 
-/* ---------------- ULOŽENIE VÝDAJA ---------------- */
-function ulozVydaj() {
-    const art = document.getElementById("art").value.trim();
-    const ziadatel = document.getElementById("ziadatel").value.trim();
-    const vydal = document.getElementById("vydal").value.trim();
-    const pocet = parseInt(document.getElementById("pocet").value);
+/* ---------------- QR SKENER (TLAČ ETIKETY) ---------------- */
+let labelScanner = null;
 
-    if (!art || !ziadatel || !vydal || pocet < 1) {
-        alert("Vyplň všetky údaje");
-        return;
-    }
+function startLabelScanner() {
+    const reader = document.getElementById("label-qr-reader");
+    reader.style.display = "block";
 
-    const now = new Date();
-    const zaznam = {
-        datum: now.toLocaleDateString(),
-        cas: now.toLocaleTimeString(),
-        artikl: art,
-        pocet: pocet,
-        ziadatel: ziadatel,
-        vydal: vydal
-    };
+    labelScanner = new Html5Qrcode("label-qr-reader");
 
-    let log = JSON.parse(localStorage.getItem("vydajLog") || "[]");
-    log.push(zaznam);
-    localStorage.setItem("vydajLog", JSON.stringify(log));
-
-    zobrazTabulku();
-
-    document.getElementById("art").value = "";
-    document.getElementById("pocet").value = 1;
+    labelScanner.start(
+        { facingMode: "environment" },
+        { fps: 10, qrbox: 250 },
+        decoded => {
+            document.getElementById("etiketaText").value = decoded;
+            stopLabelScanner();
+        }
+    );
 }
 
-/* ---------------- TABUĽKA ---------------- */
-function zobrazTabulku() {
-    const tbody = document.querySelector("#vydajTable tbody");
-    tbody.innerHTML = "";
+function stopLabelScanner() {
+    const reader = document.getElementById("label-qr-reader");
+    reader.style.display = "none";
 
-    const filterText = document.getElementById("filterText").value.toLowerCase();
-    const filterDate = document.getElementById("filterDate").value;
-
-    let log = JSON.parse(localStorage.getItem("vydajLog") || "[]");
-
-    log.forEach(z => {
-        if (filterText && !JSON.stringify(z).toLowerCase().includes(filterText)) return;
-        if (filterDate && z.datum !== new Date(filterDate).toLocaleDateString()) return;
-
-        const row = `
-            <tr>
-                <td>${z.datum}</td>
-                <td>${z.cas}</td>
-                <td>${z.artikl}</td>
-                <td>${z.pocet}</td>
-                <td>${z.ziadatel}</td>
-                <td>${z.vydal}</td>
-            </tr>
-        `;
-        tbody.innerHTML += row;
-    });
+    if (labelScanner) {
+        labelScanner.stop();
+        labelScanner = null;
+    }
 }
 
-/* ---------------- ZDIEĽANIE EXCELU ---------------- */
-function shareExcel() {
-    let log = JSON.parse(localStorage.getItem("vydajLog") || "[]");
+/* ---------------- VÝBER USB / LAN ---------------- */
+function switchPrinterMode() {
+    const mode = document.getElementById("printerMode").value;
+    const ipField = document.getElementById("printerIP");
 
-    const filterText = document.getElementById("filterText").value.toLowerCase();
-    const filterDate = document.getElementById("filterDate").value;
-
-    let filtered = log.filter(z => {
-        if (filterText && !JSON.stringify(z).toLowerCase().includes(filterText)) return false;
-        if (filterDate && z.datum !== new Date(filterDate).toLocaleDateString()) return false;
-        return true;
-    });
-
-    if (filtered.length === 0) {
-        alert("Žiadne záznamy na export");
-        return;
-    }
-
-    const worksheet = XLSX.utils.json_to_sheet(filtered);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Vydaje");
-
-    const excelBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
-    const file = new File([excelBuffer], "vydaje.xlsx", {
-        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    });
-
-    if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-        navigator.share({
-            title: "Výdaj tovaru",
-            text: "Odfiltrované záznamy vo formáte Excel",
-            files: [file]
-        });
+    if (mode === "lan") {
+        ipField.style.display = "block";
     } else {
-        alert("Toto zariadenie nepodporuje zdieľanie Excel súborov");
+        ipField.style.display = "none";
     }
 }
 
-/* ---------------- TLAČ ETIKETY (USB + ZPL) ---------------- */
+/* ---------------- USB PRIPOJENIE ---------------- */
 let zebraDevice = null;
 
-async function connectPrinter() {
+async function connectPrinterUSB() {
     try {
         zebraDevice = await navigator.usb.requestDevice({
             filters: [{ vendorId: 0x0A5F }]
@@ -319,19 +282,48 @@ async function connectPrinter() {
         await zebraDevice.claimInterface(0);
 
         document.getElementById("printerStatus").innerText =
-            "Tlačiareň pripojená ✔";
+            "Tlačiareň pripojená cez USB ✔";
     } catch (e) {
         document.getElementById("printerStatus").innerText =
-            "Nepodarilo sa pripojiť k tlačiarni";
+            "USB pripojenie zlyhalo ✖";
     }
 }
 
-async function printLabel() {
-    if (!zebraDevice) {
-        alert("Najprv pripoj tlačiareň");
+/* ---------------- LAN PRIPOJENIE (port 9100) ---------------- */
+async function connectPrinterLAN() {
+    const ip = document.getElementById("printerIP").value.trim();
+    if (!ip) {
+        alert("Zadaj IP adresu tlačiarne");
         return;
     }
 
+    try {
+        const response = await fetch(`http://${ip}:9100`, {
+            method: "POST",
+            body: ""
+        });
+
+        document.getElementById("printerStatus").innerText =
+            "Tlačiareň online ✔";
+    } catch {
+        document.getElementById("printerStatus").innerText =
+            "Tlačiareň nedostupná ✖";
+    }
+}
+
+/* ---------------- PREPÍNAČ PRIPOJENIA ---------------- */
+function connectPrinter() {
+    const mode = document.getElementById("printerMode").value;
+
+    if (mode === "usb") {
+        connectPrinterUSB();
+    } else {
+        connectPrinterLAN();
+    }
+}
+
+/* ---------------- TLAČ ETIKETY ---------------- */
+async function printLabel() {
     const data = document.getElementById("etiketaText").value.trim();
     if (!data) {
         alert("Zadaj číslo pre QR kód");
@@ -344,16 +336,42 @@ async function printLabel() {
 ^FO50,300^A0N,60,60^FD${data}^FS
 ^XZ`;
 
-    const encoder = new TextEncoder();
-    const zplBytes = encoder.encode(zpl);
+    const mode = document.getElementById("printerMode").value;
 
-    await zebraDevice.transferOut(1, zplBytes);
+    /* USB */
+    if (mode === "usb") {
+        if (!zebraDevice) {
+            alert("Najprv pripoj USB tlačiareň");
+            return;
+        }
 
-    document.getElementById("printerStatus").innerText =
-        "Etiketa vytlačená ✔";
+        const encoder = new TextEncoder();
+        const zplBytes = encoder.encode(zpl);
+        await zebraDevice.transferOut(1, zplBytes);
+
+        document.getElementById("printerStatus").innerText =
+            "Etiketa vytlačená cez USB ✔";
+    }
+
+    /* LAN */
+    if (mode === "lan") {
+        const ip = document.getElementById("printerIP").value.trim();
+        if (!ip) {
+            alert("Zadaj IP adresu tlačiarne");
+            return;
+        }
+
+        await fetch(`http://${ip}:9100`, {
+            method: "POST",
+            body: zpl
+        });
+
+        document.getElementById("printerStatus").innerText =
+            "Etiketa odoslaná cez LAN ✔";
+    }
 }
 
-/* ---------------- VYMAZANIE ---------------- */
+/* ---------------- VÝMAZ ---------------- */
 function vymazVsetko() {
     if (confirm("Naozaj chceš vymazať všetky záznamy?")) {
         localStorage.removeItem("vydajLog");
