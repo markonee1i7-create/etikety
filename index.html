@@ -5,6 +5,7 @@
 <title>Výdaj tovaru</title>
 
 <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
 
 <style>
 body {
@@ -14,7 +15,7 @@ body {
     margin: auto;
 }
 
-input, button {
+input, button, select {
     width: 100%;
     padding: 12px;
     margin-top: 10px;
@@ -73,7 +74,15 @@ table th {
 <div id="qr-reader"></div>
 
 <input id="ziadatel" type="text" placeholder="Žiadateľ">
-<input id="vydal" type="text" placeholder="Vydal">
+
+<select id="vydal">
+    <option value="">-- Vyber meno --</option>
+    <option value="rpetrik">rpetrik</option>
+    <option value="sbobak">sbobak</option>
+    <option value="aolejka">aolejka</option>
+    <option value="khalamko">khalamko</option>
+</select>
+
 <input id="pocet" type="number" min="1" value="1" placeholder="Počet ks">
 
 <button onclick="ulozVydaj()">💾 Uložiť výdaj</button>
@@ -107,6 +116,10 @@ table th {
 
     <button onclick="shareTableToTeams()" style="margin-top:10px; background:#cfe8ff;">
         📤 Zdieľať tabuľku do Teams
+    </button>
+
+    <button onclick="shareExcel()" style="margin-top:10px; background:#b7e4c7;">
+        📤 Zdieľať Excel
     </button>
 
     <button onclick="vymazVsetko()" style="margin-top:20px; background:#ffdddd;">
@@ -286,6 +299,44 @@ function shareTableToTeams() {
 
     const encoded = encodeURIComponent(table);
     window.open(`https://teams.microsoft.com/share?html=${encoded}`, "_blank");
+}
+
+/* ---------------- ZDIEĽANIE EXCELU ---------------- */
+function shareExcel() {
+    let log = JSON.parse(localStorage.getItem("vydajLog") || "[]");
+
+    const filterText = document.getElementById("filterText").value.toLowerCase();
+    const filterDate = document.getElementById("filterDate").value;
+
+    let filtered = log.filter(z => {
+        if (filterText && !JSON.stringify(z).toLowerCase().includes(filterText)) return false;
+        if (filterDate && z.datum !== new Date(filterDate).toLocaleDateString()) return false;
+        return true;
+    });
+
+    if (filtered.length === 0) {
+        alert("Žiadne záznamy na export");
+        return;
+    }
+
+    const worksheet = XLSX.utils.json_to_sheet(filtered);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Vydaje");
+
+    const excelBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
+    const file = new File([excelBuffer], "vydaje.xlsx", {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    });
+
+    if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+        navigator.share({
+            title: "Výdaj tovaru",
+            text: "Odfiltrované záznamy vo formáte Excel",
+            files: [file]
+        });
+    } else {
+        alert("Toto zariadenie nepodporuje zdieľanie Excel súborov");
+    }
 }
 
 /* ---------------- VYMAZANIE ---------------- */
