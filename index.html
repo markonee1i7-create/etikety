@@ -11,11 +11,10 @@
 body {
     font-family: Arial, sans-serif;
     padding: 20px;
-    max-width: 800px;
+    max-width: 900px;
     margin: auto;
 }
 
-/* MENU */
 .menu {
     display: flex;
     gap: 10px;
@@ -32,7 +31,6 @@ body {
     cursor: pointer;
 }
 
-/* VŠEOBECNÉ */
 input, button, select {
     width: 100%;
     padding: 12px;
@@ -70,16 +68,6 @@ table th, table td {
 table th {
     background: #e8f0ff;
 }
-
-.filter-box {
-    margin-top: 20px;
-    display: flex;
-    gap: 10px;
-}
-
-.filter-box input {
-    flex: 1;
-}
 </style>
 </head>
 
@@ -87,7 +75,6 @@ table th {
 
 <h2>📦 Skladový systém</h2>
 
-<!-- NAVIGAČNÉ MENU -->
 <nav class="menu">
     <button onclick="showSection('vydaj')">Výdaj</button>
     <button onclick="showSection('tlac')">Tlač etikety</button>
@@ -95,59 +82,53 @@ table th {
 </nav>
 
 <!-- ===========================
-     SEKCIa: VÝDAJ
+     VÝDAJ
 =========================== -->
 <div id="section-vydaj">
 
-<h3>📦 Výdaj tovaru</h3>
+<h3>📦 Výdaj materiálu</h3>
 
-<input id="art" type="text" placeholder="Artiklové číslo">
+<input id="cisloMaterialu" type="text" placeholder="Číslo materiálu">
 
 <button onclick="startScanner()">📷 Skenovať QR/EAN</button>
 <button onclick="stopScanner()" style="background:#ffe4e4;">⛔ Vypnúť kameru</button>
 
 <div id="qr-reader"></div>
 
-<input id="ziadatel" type="text" placeholder="Žiadateľ">
-<input id="vydal" type="text" placeholder="Vydal">
+<input id="datumVydaja" type="text" placeholder="Dátum výdaja" disabled>
+<input id="nazovDielu" type="text" placeholder="Názov dielu (prázdne)" disabled>
 
-<input id="pocet" type="number" min="1" value="1" placeholder="Počet ks">
+<input id="pocet" type="number" min="1" value="1" placeholder="Počet">
+
+<input id="zona" type="text" placeholder="Zóna">
+<input id="stanica" type="text" placeholder="Stanica">
+
+<input id="ziadatel" type="text" placeholder="Žiadateľ (CDSID)">
+<input id="vydal" type="text" placeholder="Vydal (CDSID)">
+
+<input id="casVydaja" type="text" placeholder="Čas výdaja" disabled>
 
 <button onclick="ulozVydaj()">💾 Uložiť výdaj</button>
 
 <div class="table-container">
     <h3>📋 Záznamy o výdaji</h3>
 
-    <div class="filter-box">
-        <input id="filterText" type="text" placeholder="Filtrovať text"
-               oninput="zobrazTabulku()">
-        <input id="filterDate" type="date" oninput="zobrazTabulku()">
-    </div>
-
-    <!-- NOVÝ FILTER ZMENY -->
-    <select id="filterShift" onchange="zobrazTabulku()">
-        <option value="all">Všetko</option>
-        <option value="ranna">Ranná zmena (06:00–18:00)</option>
-        <option value="nocna">Nočná zmena (18:00–06:00)</option>
-    </select>
-
     <table id="vydajTable">
         <thead>
             <tr>
+                <th>Číslo materiálu</th>
                 <th>Dátum</th>
                 <th>Čas</th>
-                <th>Artikl</th>
+                <th>Názov dielu</th>
                 <th>Počet</th>
+                <th>Zóna</th>
+                <th>Stanica</th>
                 <th>Žiadateľ</th>
                 <th>Vydal</th>
             </tr>
         </thead>
         <tbody></tbody>
     </table>
-
-    <button onclick="shareExcel()" style="margin-top:20px; background:#b7e4c7;">
-        📤 Zdieľať Excel
-    </button>
 
     <button onclick="vymazVsetko()" style="margin-top:20px; background:#ffdddd;">
         ❌ Vymazať všetky záznamy
@@ -157,7 +138,7 @@ table th {
 </div>
 
 <!-- ===========================
-     SEKCIa: TLAČ ETIKETY
+     TLAČ ETIKETY (IBA IP)
 =========================== -->
 <div id="section-tlac" style="display:none;">
     <h3>🖨️ Tlač etikety</h3>
@@ -169,38 +150,37 @@ table th {
 
     <div id="label-qr-reader"></div>
 
-    <h4>Pripojenie tlačiarne</h4>
+    <h4>IP adresa tlačiarne</h4>
+    <input id="printerIP" type="text" placeholder="192.168.x.x">
 
-    <select id="printerMode" onchange="switchPrinterMode()">
-        <option value="usb">USB (WebUSB)</option>
-        <option value="lan">LAN (IP adresa)</option>
-    </select>
-
-    <input id="printerIP" type="text" placeholder="IP adresa tlačiarne"
-           style="display:none;">
-
-    <button onclick="connectPrinter()">🔌 Pripojiť tlačiareň</button>
+    <button onclick="connectPrinterLAN()">🔌 Overiť pripojenie</button>
     <p id="printerStatus" style="margin-top:10px; color:#555;"></p>
 
     <button onclick="printLabel()">🖨️ Vytlačiť etiketu</button>
 </div>
 
 <!-- ===========================
-     SEKCIa: INVENTÚRA
+     INVENTÚRA
 =========================== -->
 <div id="section-inventura" style="display:none;">
     <h3>📋 Inventúra</h3>
-    <p>Tu môže byť skener + počítanie + export do Excelu.</p>
+    <p>Modul inventúry bude doplnený.</p>
 </div>
 
 <script>
-/* ---------------- MENU PREPÍNANIE ---------------- */
+/* ---------------- PREPÍNANIE SEKCIÍ ---------------- */
 function showSection(name) {
     document.getElementById("section-vydaj").style.display = "none";
     document.getElementById("section-tlac").style.display = "none";
     document.getElementById("section-inventura").style.display = "none";
 
     document.getElementById("section-" + name).style.display = "block";
+
+    if (name === "vydaj") {
+        const now = new Date();
+        document.getElementById("datumVydaja").value = now.toLocaleDateString();
+        document.getElementById("casVydaja").value = now.toLocaleTimeString();
+    }
 }
 
 /* ---------------- QR SKENER (VÝDAJ) ---------------- */
@@ -216,7 +196,7 @@ function startScanner() {
         { facingMode: "environment" },
         { fps: 10, qrbox: 250 },
         decoded => {
-            document.getElementById("art").value = decoded;
+            document.getElementById("cisloMaterialu").value = decoded;
             stopScanner();
         }
     );
@@ -232,7 +212,7 @@ function stopScanner() {
     }
 }
 
-/* ---------------- QR SKENER (TLAČ ETIKETY) ---------------- */
+/* ---------------- QR SKENER (TLAČ) ---------------- */
 let labelScanner = null;
 
 function startLabelScanner() {
@@ -261,158 +241,30 @@ function stopLabelScanner() {
     }
 }
 
-/* ---------------- VÝBER USB / LAN ---------------- */
-function switchPrinterMode() {
-    const mode = document.getElementById("printerMode").value;
-    const ipField = document.getElementById("printerIP");
-
-    if (mode === "lan") {
-        ipField.style.display = "block";
-    } else {
-        ipField.style.display = "none";
-    }
-}
-
-/* ---------------- USB PRIPOJENIE (OPRAVENÉ) ---------------- */
-let zebraDevice = null;
-
-async function connectPrinterUSB() {
-    try {
-        zebraDevice = await navigator.usb.requestDevice({
-            filters: [{ vendorId: 0x0A5F }]
-        });
-
-        await zebraDevice.open();
-        await zebraDevice.selectConfiguration(1);
-
-        // Nájdeme interface s BULK OUT endpointom
-        const iface = zebraDevice.configuration.interfaces.find(i =>
-            i.alternate.endpoints.some(e => e.direction === "out" && e.type === "bulk")
-        );
-
-        if (!iface) {
-            document.getElementById("printerStatus").innerText =
-                "Nenašiel sa USB tlačový interface ✖";
-            return;
-        }
-
-        await zebraDevice.claimInterface(iface.interfaceNumber);
-
-        // Uložíme endpoint pre tlač
-        const outEndpoint = iface.alternate.endpoints.find(e => e.direction === "out").endpointNumber;
-        zebraDevice._outEndpoint = outEndpoint;
-
-        document.getElementById("printerStatus").innerText =
-            "Tlačiareň pripojená cez USB ✔";
-
-    } catch (e) {
-        console.error(e);
-        document.getElementById("printerStatus").innerText =
-            "USB pripojenie zlyhalo ✖";
-    }
-}
-
-/* ---------------- LAN PRIPOJENIE (port 9100) ---------------- */
-async function connectPrinterLAN() {
-    const ip = document.getElementById("printerIP").value.trim();
-    if (!ip) {
-        alert("Zadaj IP adresu tlačiarne");
-        return;
-    }
-
-    try {
-        await fetch(`http://${ip}:9100`, {
-            method: "POST",
-            body: ""
-        });
-
-        document.getElementById("printerStatus").innerText =
-            "Tlačiareň online ✔";
-    } catch {
-        document.getElementById("printerStatus").innerText =
-            "Tlačiareň nedostupná ✖";
-    }
-}
-
-/* ---------------- PREPÍNAČ PRIPOJENIA ---------------- */
-function connectPrinter() {
-    const mode = document.getElementById("printerMode").value;
-
-    if (mode === "usb") {
-        connectPrinterUSB();
-    } else {
-        connectPrinterLAN();
-    }
-}
-
-/* ---------------- TLAČ ETIKETY ---------------- */
-async function printLabel() {
-    const data = document.getElementById("etiketaText").value.trim();
-    if (!data) {
-        alert("Zadaj číslo pre QR kód");
-        return;
-    }
-
-    const zpl = `
-^XA
-^FO50,50^BQN,2,6^FDLA,${data}^FS
-^FO50,300^A0N,60,60^FD${data}^FS
-^XZ`;
-
-    const mode = document.getElementById("printerMode").value;
-
-    /* USB */
-    if (mode === "usb") {
-        if (!zebraDevice) {
-            alert("Najprv pripoj USB tlačiareň");
-            return;
-        }
-
-        const encoder = new TextEncoder();
-        const zplBytes = encoder.encode(zpl);
-
-        await zebraDevice.transferOut(zebraDevice._outEndpoint, zplBytes);
-
-        document.getElementById("printerStatus").innerText =
-            "Etiketa vytlačená cez USB ✔";
-    }
-
-    /* LAN */
-    if (mode === "lan") {
-        const ip = document.getElementById("printerIP").value.trim();
-        if (!ip) {
-            alert("Zadaj IP adresu tlačiarne");
-            return;
-        }
-
-        await fetch(`http://${ip}:9100`, {
-            method: "POST",
-            body: zpl
-        });
-
-        document.getElementById("printerStatus").innerText =
-            "Etiketa odoslaná cez LAN ✔";
-    }
-}
-
 /* ---------------- ULOŽENIE VÝDAJA ---------------- */
 function ulozVydaj() {
-    const art = document.getElementById("art").value.trim();
+    const cisloMaterialu = document.getElementById("cisloMaterialu").value.trim();
+    const pocet = parseInt(document.getElementById("pocet").value);
+    const zona = document.getElementById("zona").value.trim();
+    const stanica = document.getElementById("stanica").value.trim();
     const ziadatel = document.getElementById("ziadatel").value.trim();
     const vydal = document.getElementById("vydal").value.trim();
-    const pocet = parseInt(document.getElementById("pocet").value);
 
-    if (!art || !ziadatel || !vydal || pocet < 1) {
-        alert("Vyplň všetky údaje");
+    if (!cisloMaterialu || !pocet || !zona || !stanica || !ziadatel || !vydal) {
+        alert("Vyplň všetky povinné údaje");
         return;
     }
 
     const now = new Date();
+
     const zaznam = {
+        cisloMaterialu: cisloMaterialu,
         datum: now.toLocaleDateString(),
         cas: now.toLocaleTimeString(),
-        artikl: art,
+        nazovDielu: "",
         pocet: pocet,
+        zona: zona,
+        stanica: stanica,
         ziadatel: ziadatel,
         vydal: vydal
     };
@@ -423,41 +275,31 @@ function ulozVydaj() {
 
     zobrazTabulku();
 
-    document.getElementById("art").value = "";
+    document.getElementById("cisloMaterialu").value = "";
     document.getElementById("pocet").value = 1;
+    document.getElementById("zona").value = "";
+    document.getElementById("stanica").value = "";
+    document.getElementById("ziadatel").value = "";
+    document.getElementById("vydal").value = "";
 }
 
-/* ---------------- TABUĽKA + FILTRE ---------------- */
+/* ---------------- TABUĽKA ---------------- */
 function zobrazTabulku() {
     const tbody = document.querySelector("#vydajTable tbody");
     tbody.innerHTML = "";
 
-    const filterText = document.getElementById("filterText").value.toLowerCase();
-    const filterDate = document.getElementById("filterDate").value;
-    const filterShift = document.getElementById("filterShift").value;
-
     let log = JSON.parse(localStorage.getItem("vydajLog") || "[]");
 
     log.forEach(z => {
-        // TEXT FILTER
-        if (filterText && !JSON.stringify(z).toLowerCase().includes(filterText)) return;
-
-        // DATE FILTER
-        if (filterDate && z.datum !== new Date(filterDate).toLocaleDateString()) return;
-
-        // SHIFT FILTER
-        const [h, m, s] = z.cas.split(":").map(Number);
-        const time = h + m/60;
-
-        if (filterShift === "ranna" && (time < 6 || time >= 18)) return;
-        if (filterShift === "nocna" && !(time >= 18 || time < 6)) return;
-
         const row = `
             <tr>
+                <td>${z.cisloMaterialu}</td>
                 <td>${z.datum}</td>
                 <td>${z.cas}</td>
-                <td>${z.artikl}</td>
+                <td>${z.nazovDielu}</td>
                 <td>${z.pocet}</td>
+                <td>${z.zona}</td>
+                <td>${z.stanica}</td>
                 <td>${z.ziadatel}</td>
                 <td>${z.vydal}</td>
             </tr>
@@ -466,58 +308,56 @@ function zobrazTabulku() {
     });
 }
 
-/* ---------------- EXCEL EXPORT ---------------- */
-function shareExcel() {
-    let log = JSON.parse(localStorage.getItem("vydajLog") || "[]");
-
-    const filterText = document.getElementById("filterText").value.toLowerCase();
-    const filterDate = document.getElementById("filterDate").value;
-    const filterShift = document.getElementById("filterShift").value;
-
-    let filtered = log.filter(z => {
-        if (filterText && !JSON.stringify(z).toLowerCase().includes(filterText)) return false;
-        if (filterDate && z.datum !== new Date(filterDate).toLocaleDateString()) return false;
-
-        const [h, m, s] = z.cas.split(":").map(Number);
-        const time = h + m/60;
-
-        if (filterShift === "ranna" && (time < 6 || time >= 18)) return false;
-        if (filterShift === "nocna" && !(time >= 18 || time < 6)) return false;
-
-        return true;
-    });
-
-    if (filtered.length === 0) {
-        alert("Žiadne záznamy na export");
-        return;
-    }
-
-    const worksheet = XLSX.utils.json_to_sheet(filtered);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Vydaje");
-
-    const excelBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
-    const file = new File([excelBuffer], "vydaje.xlsx", {
-        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    });
-
-    if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-        navigator.share({
-            title: "Výdaj tovaru",
-            text: "Odfiltrované záznamy",
-            files: [file]
-        });
-    } else {
-        alert("Zdieľanie nie je podporované");
-    }
-}
-
 /* ---------------- VYMAZANIE ---------------- */
 function vymazVsetko() {
     if (confirm("Naozaj chceš vymazať všetky záznamy?")) {
         localStorage.removeItem("vydajLog");
         zobrazTabulku();
     }
+}
+
+/* ---------------- LAN PRIPOJENIE ---------------- */
+async function connectPrinterLAN() {
+    const ip = document.getElementById("printerIP").value.trim();
+    if (!ip) {
+        alert("Zadaj IP adresu tlačiarne");
+        return;
+    }
+
+    try {
+        await fetch(`http://${ip}:9100`, { method: "POST", body: "" });
+        document.getElementById("printerStatus").innerText = "Tlačiareň online ✔";
+    } catch {
+        document.getElementById("printerStatus").innerText = "Tlačiareň nedostupná ✖";
+    }
+}
+
+/* ---------------- TLAČ ETIKETY ---------------- */
+async function printLabel() {
+    const data = document.getElementById("etiketaText").value.trim();
+    const ip = document.getElementById("printerIP").value.trim();
+
+    if (!data) {
+        alert("Zadaj číslo pre QR kód");
+        return;
+    }
+    if (!ip) {
+        alert("Zadaj IP adresu tlačiarne");
+        return;
+    }
+
+    const zpl = `
+^XA
+^FO50,50^BQN,2,6^FDLA,${data}^FS
+^FO50,300^A0N,60,60^FD${data}^FS
+^XZ`;
+
+    await fetch(`http://${ip}:9100`, {
+        method: "POST",
+        body: zpl
+    });
+
+    document.getElementById("printerStatus").innerText = "Etiketa odoslaná ✔";
 }
 </script>
 
