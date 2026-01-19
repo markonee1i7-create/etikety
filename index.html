@@ -40,7 +40,7 @@ input, button, select {
 
 button { cursor: pointer; }
 
-#qr-reader, #label-qr-reader {
+#qr-reader, #label-qr-reader, #inv-qr-reader {
     margin-top: 20px;
     display: none;
 }
@@ -168,7 +168,41 @@ table th {
 =========================== -->
 <div id="section-inventura" style="display:none;">
     <h3>📋 Inventúra</h3>
-    <p>Modul inventúry bude doplnený.</p>
+
+    <input id="invKod" type="text" placeholder="Kód materiálu">
+
+    <button onclick="startInvScanner()">📷 Skenovať QR/EAN</button>
+    <button onclick="stopInvScanner()" style="background:#ffe4e4;">⛔ Vypnúť kameru</button>
+
+    <div id="inv-qr-reader"></div>
+
+    <input id="invMnozstvo" type="number" min="0" placeholder="Skutočné množstvo">
+
+    <button onclick="ulozInventuru()">💾 Uložiť inventúru</button>
+
+    <div class="table-container">
+        <h3>📋 Záznamy inventúry</h3>
+
+        <table id="invTable">
+            <thead>
+                <tr>
+                    <th>Kód materiálu</th>
+                    <th>Skutočné množstvo</th>
+                    <th>Dátum</th>
+                    <th>Čas</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+
+        <button onclick="exportInventura()" style="margin-top:20px; background:#b7e4c7;">
+            📤 Export inventúry do Excelu / MS Teams
+        </button>
+
+        <button onclick="vymazInventuru()" style="margin-top:20px; background:#ffdddd;">
+            ❌ Vymazať inventúru
+        </button>
+    </div>
 </div>
 
 <script>
@@ -186,37 +220,7 @@ function showSection(name) {
         document.getElementById("casVydaja").value = now.toLocaleTimeString();
     }
 }
-
-/* ---------------- QR SKENER (VÝDAJ) ---------------- */
-let qrScanner = null;
-
-function startScanner() {
-    const reader = document.getElementById("qr-reader");
-    reader.style.display = "block";
-
-    qrScanner = new Html5Qrcode("qr-reader");
-
-    qrScanner.start(
-        { facingMode: "environment" },
-        { fps: 10, qrbox: 250 },
-        decoded => {
-            document.getElementById("cisloMaterialu").value = decoded;
-            stopScanner();
-        }
-    );
-}
-
-function stopScanner() {
-    const reader = document.getElementById("qr-reader");
-    reader.style.display = "none";
-
-    if (qrScanner) {
-        qrScanner.stop();
-        qrScanner = null;
-    }
-}
-
-/* ---------------- QR SKENER (TLAČ) ---------------- */
+    /* ---------------- QR SKENER (TLAČ) ---------------- */
 let labelScanner = null;
 
 function startLabelScanner() {
@@ -242,6 +246,35 @@ function stopLabelScanner() {
     if (labelScanner) {
         labelScanner.stop();
         labelScanner = null;
+    }
+}
+
+/* ---------------- QR SKENER (INVENTÚRA) ---------------- */
+let invScanner = null;
+
+function startInvScanner() {
+    const reader = document.getElementById("inv-qr-reader");
+    reader.style.display = "block";
+
+    invScanner = new Html5Qrcode("inv-qr-reader");
+
+    invScanner.start(
+        { facingMode: "environment" },
+        { fps: 10, qrbox: 250 },
+        decoded => {
+            document.getElementById("invKod").value = decoded;
+            stopInvScanner();
+        }
+    );
+}
+
+function stopInvScanner() {
+    const reader = document.getElementById("inv-qr-reader");
+    reader.style.display = "none";
+
+    if (invScanner) {
+        invScanner.stop();
+        invScanner = null;
     }
 }
 
@@ -287,7 +320,7 @@ function ulozVydaj() {
     document.getElementById("vydal").value = "";
 }
 
-/* ---------------- TABUĽKA ---------------- */
+/* ---------------- TABUĽKA VÝDAJA ---------------- */
 function zobrazTabulku() {
     const tbody = document.querySelector("#vydajTable tbody");
     tbody.innerHTML = "";
@@ -312,7 +345,7 @@ function zobrazTabulku() {
     });
 }
 
-/* ---------------- VYMAZANIE ---------------- */
+/* ---------------- VYMAZANIE VÝDAJA ---------------- */
 function vymazVsetko() {
     if (confirm("Naozaj chceš vymazať všetky záznamy?")) {
         localStorage.removeItem("vydajLog");
@@ -320,7 +353,7 @@ function vymazVsetko() {
     }
 }
 
-/* ---------------- EXPORT DO EXCELU + MS TEAMS ---------------- */
+/* ---------------- EXPORT VÝDAJA DO EXCELU / MS TEAMS ---------------- */
 function exportExcel() {
     let log = JSON.parse(localStorage.getItem("vydajLog") || "[]");
 
@@ -352,6 +385,100 @@ function exportExcel() {
         const a = document.createElement("a");
         a.href = url;
         a.download = "vydaj.xlsx";
+        a.click();
+        URL.revokeObjectURL(url);
+    }
+}
+
+/* ---------------- ULOŽENIE INVENTÚRY ---------------- */
+function ulozInventuru() {
+    const kod = document.getElementById("invKod").value.trim();
+    const mnozstvo = parseFloat(document.getElementById("invMnozstvo").value);
+
+    if (!kod || isNaN(mnozstvo)) {
+        alert("Vyplň kód materiálu a skutočné množstvo");
+        return;
+    }
+
+    const now = new Date();
+
+    const zaznam = {
+        kod: kod,
+        mnozstvo: mnozstvo,
+        datum: now.toLocaleDateString(),
+        cas: now.toLocaleTimeString()
+    };
+
+    let inv = JSON.parse(localStorage.getItem("inventuraLog") || "[]");
+    inv.push(zaznam);
+    localStorage.setItem("inventuraLog", JSON.stringify(inv));
+
+    zobrazInventuru();
+
+    document.getElementById("invKod").value = "";
+    document.getElementById("invMnozstvo").value = "";
+}
+
+/* ---------------- TABUĽKA INVENTÚRY ---------------- */
+function zobrazInventuru() {
+    const tbody = document.querySelector("#invTable tbody");
+    tbody.innerHTML = "";
+
+    let inv = JSON.parse(localStorage.getItem("inventuraLog") || "[]");
+
+    inv.forEach(z => {
+        const row = `
+            <tr>
+                <td>${z.kod}</td>
+                <td>${z.mnozstvo}</td>
+                <td>${z.datum}</td>
+                <td>${z.cas}</td>
+            </tr>
+        `;
+        tbody.innerHTML += row;
+    });
+}
+
+/* ---------------- VYMAZANIE INVENTÚRY ---------------- */
+function vymazInventuru() {
+    if (confirm("Naozaj chceš vymazať inventúru?")) {
+        localStorage.removeItem("inventuraLog");
+        zobrazInventuru();
+    }
+}
+
+/* ---------------- EXPORT INVENTÚRY DO EXCELU / MS TEAMS ---------------- */
+function exportInventura() {
+    let inv = JSON.parse(localStorage.getItem("inventuraLog") || "[]");
+
+    if (inv.length === 0) {
+        alert("Žiadne inventúrne záznamy na export");
+        return;
+    }
+
+    const worksheet = XLSX.utils.json_to_sheet(inv);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Inventura");
+
+    const excelBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
+    const file = new File([excelBuffer], "inventura.xlsx", {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    });
+
+    if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+        navigator.share({
+            title: "Inventúra",
+            text: "Export inventúry",
+            files: [file]
+        });
+    } else {
+        const blob = new Blob([excelBuffer], {
+            type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "inventura.xlsx";
         a.click();
         URL.revokeObjectURL(url);
     }
