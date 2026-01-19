@@ -142,7 +142,7 @@ table th {
 </div>
 
 <!-- ===========================
-     TLAČ ETIKETY (IBA IP)
+     TLAČ ETIKETY
 =========================== -->
 <div id="section-tlac" style="display:none;">
     <h3>🖨️ Tlač etikety</h3>
@@ -206,7 +206,7 @@ table th {
 </div>
 
 <script>
-/* ---------------- PREPÍNANIE SEKCIÍ ---------------- */
+    /* ---------------- PREPÍNANIE SEKCIÍ ---------------- */
 function showSection(name) {
     document.getElementById("section-vydaj").style.display = "none";
     document.getElementById("section-tlac").style.display = "none";
@@ -220,47 +220,202 @@ function showSection(name) {
         document.getElementById("casVydaja").value = now.toLocaleTimeString();
     }
 }
-    /* ---------------- QR SKENER (TLAČ) ---------------- */
-let labelScanner = null;
 
-function startLabelScanner() {
-    const reader = document.getElementById("label-qr-reader");
+/* ---------------- ULOŽENIE VÝDAJA ---------------- */
+function ulozVydaj() {
+    const cislo = document.getElementById("cisloMaterialu").value.trim();
+    const datum = document.getElementById("datumVydaja").value;
+    const cas = document.getElementById("casVydaja").value;
+    const nazov = document.getElementById("nazovDielu").value.trim();
+    const pocet = document.getElementById("pocet").value;
+    const zona = document.getElementById("zona").value.trim();
+    const stanica = document.getElementById("stanica").value.trim();
+    const ziada = document.getElementById("ziadatel").value.trim();
+    const vydal = document.getElementById("vydal").value.trim();
+
+    if (!cislo || !pocet || !zona || !stanica || !ziada || !vydal) {
+        alert("Vyplň všetky povinné polia.");
+        return;
+    }
+
+    const row = { cislo, datum, cas, nazov, pocet, zona, stanica, ziada, vydal };
+
+    let data = JSON.parse(localStorage.getItem("vydajData") || "[]");
+    data.push(row);
+    localStorage.setItem("vydajData", JSON.stringify(data));
+
+    nacitajVydaj();
+}
+
+/* ---------------- NAČÍTANIE TABUĽKY VÝDAJA ---------------- */
+function nacitajVydaj() {
+    const tbody = document.querySelector("#vydajTable tbody");
+    tbody.innerHTML = "";
+
+    const data = JSON.parse(localStorage.getItem("vydajData") || "[]");
+
+    data.forEach(r => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+            <td>${r.cislo}</td>
+            <td>${r.datum}</td>
+            <td>${r.cas}</td>
+            <td>${r.nazov}</td>
+            <td>${r.pocet}</td>
+            <td>${r.zona}</td>
+            <td>${r.stanica}</td>
+            <td>${r.ziada}</td>
+            <td>${r.vydal}</td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+/* ---------------- EXPORT DO EXCELU ---------------- */
+function exportExcel() {
+    const data = JSON.parse(localStorage.getItem("vydajData") || "[]");
+    if (data.length === 0) {
+        alert("Nie sú žiadne dáta na export.");
+        return;
+    }
+
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Vydaj");
+
+    XLSX.writeFile(wb, "vydaj.xlsx");
+}
+
+/* ---------------- VYMAZANIE VÝDAJA ---------------- */
+function vymazVsetko() {
+    if (confirm("Naozaj chceš vymazať všetky záznamy?")) {
+        localStorage.removeItem("vydajData");
+        nacitajVydaj();
+    }
+}
+
+/* ---------------- INVENTÚRA ---------------- */
+function ulozInventuru() {
+    const kod = document.getElementById("invKod").value.trim();
+    const mnozstvo = document.getElementById("invMnozstvo").value;
+
+    if (!kod || mnozstvo === "") {
+        alert("Vyplň kód aj množstvo.");
+        return;
+    }
+
+    const now = new Date();
+    const row = {
+        kod,
+        mnozstvo,
+        datum: now.toLocaleDateString(),
+        cas: now.toLocaleTimeString()
+    };
+
+    let data = JSON.parse(localStorage.getItem("invData") || "[]");
+    data.push(row);
+    localStorage.setItem("invData", JSON.stringify(data));
+
+    nacitajInventuru();
+}
+
+function nacitajInventuru() {
+    const tbody = document.querySelector("#invTable tbody");
+    tbody.innerHTML = "";
+
+    const data = JSON.parse(localStorage.getItem("invData") || "[]");
+
+    data.forEach(r => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+            <td>${r.kod}</td>
+            <td>${r.mnozstvo}</td>
+            <td>${r.datum}</td>
+            <td>${r.cas}</td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+function exportInventura() {
+    const data = JSON.parse(localStorage.getItem("invData") || "[]");
+    if (data.length === 0) {
+        alert("Nie sú žiadne dáta na export.");
+        return;
+    }
+
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Inventura");
+
+    XLSX.writeFile(wb, "inventura.xlsx");
+}
+
+function vymazInventuru() {
+    if (confirm("Naozaj chceš vymazať inventúru?")) {
+        localStorage.removeItem("invData");
+        nacitajInventuru();
+    }
+}
+
+/* ---------------- OPTIMALIZOVANÝ SKENER PRE iPHONE SE ---------------- */
+function optimalConfig() {
+    const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+    return {
+        fps: isIOS ? 8 : 12,
+        qrbox: isIOS ? 340 : 250,
+        aspectRatio: 1.0,
+        disableFlip: false,
+        experimentalFeatures: {
+            useBarCodeDetectorIfSupported: true
+        }
+    };
+}
+
+/* ---------------- SKENER – VÝDAJ ---------------- */
+let qrScanner = null;
+
+function startScanner() {
+    const reader = document.getElementById("qr-reader");
     reader.style.display = "block";
 
-    labelScanner = new Html5Qrcode("label-qr-reader");
+    const config = optimalConfig();
+    qrScanner = new Html5Qrcode("qr-reader");
 
-    labelScanner.start(
-        { facingMode: "environment" },
-        { fps: 10, qrbox: 250 },
+    qrScanner.start(
+        { facingMode: "environment", width: { ideal: 1920 }, height: { ideal: 1080 } },
+        config,
         decoded => {
-            document.getElementById("etiketaText").value = decoded;
-            stopLabelScanner();
+            document.getElementById("cisloMaterialu").value = decoded;
+            stopScanner();
         }
     );
 }
 
-function stopLabelScanner() {
-    const reader = document.getElementById("label-qr-reader");
+function stopScanner() {
+    const reader = document.getElementById("qr-reader");
     reader.style.display = "none";
 
-    if (labelScanner) {
-        labelScanner.stop();
-        labelScanner = null;
+    if (qrScanner) {
+        setTimeout(() => qrScanner.stop(), 300);
+        qrScanner = null;
     }
 }
 
-/* ---------------- QR SKENER (INVENTÚRA) ---------------- */
+/* ---------------- SKENER – INVENTÚRA ---------------- */
 let invScanner = null;
 
 function startInvScanner() {
     const reader = document.getElementById("inv-qr-reader");
     reader.style.display = "block";
 
+    const config = optimalConfig();
     invScanner = new Html5Qrcode("inv-qr-reader");
 
     invScanner.start(
-        { facingMode: "environment" },
-        { fps: 10, qrbox: 250 },
+        { facingMode: "environment", width: { ideal: 1920 }, height: { ideal: 1080 } },
+        config,
         decoded => {
             document.getElementById("invKod").value = decoded;
             stopInvScanner();
@@ -273,260 +428,91 @@ function stopInvScanner() {
     reader.style.display = "none";
 
     if (invScanner) {
-        invScanner.stop();
+        setTimeout(() => invScanner.stop(), 300);
         invScanner = null;
     }
 }
 
-/* ---------------- ULOŽENIE VÝDAJA ---------------- */
-function ulozVydaj() {
-    const cisloMaterialu = document.getElementById("cisloMaterialu").value.trim();
-    const pocet = parseInt(document.getElementById("pocet").value);
-    const zona = document.getElementById("zona").value.trim();
-    const stanica = document.getElementById("stanica").value.trim();
-    const ziadatel = document.getElementById("ziadatel").value.trim();
-    const vydal = document.getElementById("vydal").value.trim();
+/* ---------------- SKENER – TLAČ ETIKETY ---------------- */
+let labelScanner = null;
 
-    if (!cisloMaterialu || !pocet || !zona || !stanica || !ziadatel || !vydal) {
-        alert("Vyplň všetky povinné údaje");
-        return;
-    }
+function startLabelScanner() {
+    const reader = document.getElementById("label-qr-reader");
+    reader.style.display = "block";
 
-    const now = new Date();
+    const config = optimalConfig();
+    labelScanner = new Html5Qrcode("label-qr-reader");
 
-    const zaznam = {
-        cisloMaterialu: cisloMaterialu,
-        datum: now.toLocaleDateString(),
-        cas: now.toLocaleTimeString(),
-        nazovDielu: "",
-        pocet: pocet,
-        zona: zona,
-        stanica: stanica,
-        ziadatel: ziadatel,
-        vydal: vydal
-    };
-
-    let log = JSON.parse(localStorage.getItem("vydajLog") || "[]");
-    log.push(zaznam);
-    localStorage.setItem("vydajLog", JSON.stringify(log));
-
-    zobrazTabulku();
-
-    document.getElementById("cisloMaterialu").value = "";
-    document.getElementById("pocet").value = 1;
-    document.getElementById("zona").value = "";
-    document.getElementById("stanica").value = "";
-    document.getElementById("ziadatel").value = "";
-    document.getElementById("vydal").value = "";
+    labelScanner.start(
+        { facingMode: "environment", width: { ideal: 1920 }, height: { ideal: 1080 } },
+        config,
+        decoded => {
+            document.getElementById("etiketaText").value = decoded;
+            stopLabelScanner();
+        }
+    );
 }
 
-/* ---------------- TABUĽKA VÝDAJA ---------------- */
-function zobrazTabulku() {
-    const tbody = document.querySelector("#vydajTable tbody");
-    tbody.innerHTML = "";
+function stopLabelScanner() {
+    const reader = document.getElementById("label-qr-reader");
+    reader.style.display = "none";
 
-    let log = JSON.parse(localStorage.getItem("vydajLog") || "[]");
-
-    log.forEach(z => {
-        const row = `
-            <tr>
-                <td>${z.cisloMaterialu}</td>
-                <td>${z.datum}</td>
-                <td>${z.cas}</td>
-                <td>${z.nazovDielu}</td>
-                <td>${z.pocet}</td>
-                <td>${z.zona}</td>
-                <td>${z.stanica}</td>
-                <td>${z.ziadatel}</td>
-                <td>${z.vydal}</td>
-            </tr>
-        `;
-        tbody.innerHTML += row;
-    });
-}
-
-/* ---------------- VYMAZANIE VÝDAJA ---------------- */
-function vymazVsetko() {
-    if (confirm("Naozaj chceš vymazať všetky záznamy?")) {
-        localStorage.removeItem("vydajLog");
-        zobrazTabulku();
+    if (labelScanner) {
+        setTimeout(() => labelScanner.stop(), 300);
+        labelScanner = null;
     }
-}
-
-/* ---------------- EXPORT VÝDAJA DO EXCELU / MS TEAMS ---------------- */
-function exportExcel() {
-    let log = JSON.parse(localStorage.getItem("vydajLog") || "[]");
-
-    if (log.length === 0) {
-        alert("Žiadne záznamy na export");
-        return;
-    }
-
-    const worksheet = XLSX.utils.json_to_sheet(log);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Vydaj");
-
-    const excelBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
-    const file = new File([excelBuffer], "vydaj.xlsx", {
-        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    });
-
-    if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-        navigator.share({
-            title: "Výdaj materiálu",
-            text: "Export výdaja materiálu",
-            files: [file]
-        });
-    } else {
-        const blob = new Blob([excelBuffer], {
-            type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = "vydaj.xlsx";
-        a.click();
-        URL.revokeObjectURL(url);
-    }
-}
-
-/* ---------------- ULOŽENIE INVENTÚRY ---------------- */
-function ulozInventuru() {
-    const kod = document.getElementById("invKod").value.trim();
-    const mnozstvo = parseFloat(document.getElementById("invMnozstvo").value);
-
-    if (!kod || isNaN(mnozstvo)) {
-        alert("Vyplň kód materiálu a skutočné množstvo");
-        return;
-    }
-
-    const now = new Date();
-
-    const zaznam = {
-        kod: kod,
-        mnozstvo: mnozstvo,
-        datum: now.toLocaleDateString(),
-        cas: now.toLocaleTimeString()
-    };
-
-    let inv = JSON.parse(localStorage.getItem("inventuraLog") || "[]");
-    inv.push(zaznam);
-    localStorage.setItem("inventuraLog", JSON.stringify(inv));
-
-    zobrazInventuru();
-
-    document.getElementById("invKod").value = "";
-    document.getElementById("invMnozstvo").value = "";
-}
-
-/* ---------------- TABUĽKA INVENTÚRY ---------------- */
-function zobrazInventuru() {
-    const tbody = document.querySelector("#invTable tbody");
-    tbody.innerHTML = "";
-
-    let inv = JSON.parse(localStorage.getItem("inventuraLog") || "[]");
-
-    inv.forEach(z => {
-        const row = `
-            <tr>
-                <td>${z.kod}</td>
-                <td>${z.mnozstvo}</td>
-                <td>${z.datum}</td>
-                <td>${z.cas}</td>
-            </tr>
-        `;
-        tbody.innerHTML += row;
-    });
-}
-
-/* ---------------- VYMAZANIE INVENTÚRY ---------------- */
-function vymazInventuru() {
-    if (confirm("Naozaj chceš vymazať inventúru?")) {
-        localStorage.removeItem("inventuraLog");
-        zobrazInventuru();
-    }
-}
-
-/* ---------------- EXPORT INVENTÚRY DO EXCELU / MS TEAMS ---------------- */
-function exportInventura() {
-    let inv = JSON.parse(localStorage.getItem("inventuraLog") || "[]");
-
-    if (inv.length === 0) {
-        alert("Žiadne inventúrne záznamy na export");
-        return;
-    }
-
-    const worksheet = XLSX.utils.json_to_sheet(inv);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Inventura");
-
-    const excelBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
-    const file = new File([excelBuffer], "inventura.xlsx", {
-        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    });
-
-    if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-        navigator.share({
-            title: "Inventúra",
-            text: "Export inventúry",
-            files: [file]
-        });
-    } else {
-        const blob = new Blob([excelBuffer], {
-            type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = "inventura.xlsx";
-        a.click();
-        URL.revokeObjectURL(url);
-    }
-}
-
-/* ---------------- LAN PRIPOJENIE ---------------- */
-async function connectPrinterLAN() {
+        }
+    /* ---------------- TLAČ ETIKETY CEZ IP ---------------- */
+function connectPrinterLAN() {
     const ip = document.getElementById("printerIP").value.trim();
+    const status = document.getElementById("printerStatus");
+
     if (!ip) {
-        alert("Zadaj IP adresu tlačiarne");
+        status.textContent = "Zadaj IP adresu tlačiarne.";
+        status.style.color = "red";
         return;
     }
 
-    try {
-        await fetch(`http://${ip}:9100`, { method: "POST", body: "" });
-        document.getElementById("printerStatus").innerText = "Tlačiareň online ✔";
-    } catch {
-        document.getElementById("printerStatus").innerText = "Tlačiareň nedostupná ✖";
-    }
+    fetch("http://" + ip, { method: "GET" })
+        .then(() => {
+            status.textContent = "Tlačiareň je dostupná.";
+            status.style.color = "green";
+        })
+        .catch(() => {
+            status.textContent = "Tlačiareň sa nenašla.";
+            status.style.color = "red";
+        });
 }
 
-/* ---------------- TLAČ ETIKETY CEZ IP ---------------- */
-async function printLabel() {
-    const data = document.getElementById("etiketaText").value.trim();
+function printLabel() {
     const ip = document.getElementById("printerIP").value.trim();
+    const text = document.getElementById("etiketaText").value.trim();
 
-    if (!data) {
-        alert("Zadaj číslo pre QR kód");
-        return;
-    }
-    if (!ip) {
-        alert("Zadaj IP adresu tlačiarne");
+    if (!ip || !text) {
+        alert("Zadaj IP aj text pre etiketu.");
         return;
     }
 
     const zpl = `
 ^XA
-^FO50,50^BQN,2,6^FDLA,${data}^FS
-^FO50,300^A0N,60,60^FD${data}^FS
-^XZ`;
+^FO50,50^A0N,40,40^FD${text}^FS
+^FO50,120^BQN,2,6^FDLA,${text}^FS
+^XZ
+`;
 
-    await fetch(`http://${ip}:9100`, {
+    fetch("http://" + ip + "/pstprnt", {
         method: "POST",
         body: zpl
-    });
-
-    document.getElementById("printerStatus").innerText = "Etiketa odoslaná ✔";
+    })
+    .then(() => alert("Etiketa odoslaná na tlač."))
+    .catch(() => alert("Chyba pri odosielaní na tlačiareň."));
 }
+
+/* ---------------- NAČÍTANIE DÁT PRI ŠTARTE ---------------- */
+window.onload = function() {
+    nacitajVydaj();
+    nacitajInventuru();
+};
 </script>
 
 </body>
