@@ -138,6 +138,9 @@ table th {
         ❌ Vymazať všetky záznamy
     </button>
 </div>
+
+</div>
+
 <!-- ===========================
      TLAČ ETIKETY (IBA IP)
 =========================== -->
@@ -240,166 +243,8 @@ function stopLabelScanner() {
         labelScanner.stop();
         labelScanner = null;
     }
-}/* ---------------- ULOŽENIE VÝDAJA ---------------- */
-function ulozVydaj() {
-    const cisloMaterialu = document.getElementById("cisloMaterialu").value.trim();
-    const pocet = parseInt(document.getElementById("pocet").value);
-    const zona = document.getElementById("zona").value.trim();
-    const stanica = document.getElementById("stanica").value.trim();
-    const ziadatel = document.getElementById("ziadatel").value.trim();
-    const vydal = document.getElementById("vydal").value.trim();
-
-    if (!cisloMaterialu || !pocet || !zona || !stanica || !ziadatel || !vydal) {
-        alert("Vyplň všetky povinné údaje");
-        return;
-    }
-
-    const now = new Date();
-
-    const zaznam = {
-        cisloMaterialu: cisloMaterialu,
-        datum: now.toLocaleDateString(),
-        cas: now.toLocaleTimeString(),
-        nazovDielu: "",
-        pocet: pocet,
-        zona: zona,
-        stanica: stanica,
-        ziadatel: ziadatel,
-        vydal: vydal
-    };
-
-    let log = JSON.parse(localStorage.getItem("vydajLog") || "[]");
-    log.push(zaznam);
-    localStorage.setItem("vydajLog", JSON.stringify(log));
-
-    zobrazTabulku();
-
-    document.getElementById("cisloMaterialu").value = "";
-    document.getElementById("pocet").value = 1;
-    document.getElementById("zona").value = "";
-    document.getElementById("stanica").value = "";
-    document.getElementById("ziadatel").value = "";
-    document.getElementById("vydal").value = "";
 }
 
-/* ---------------- TABUĽKA ---------------- */
-function zobrazTabulku() {
-    const tbody = document.querySelector("#vydajTable tbody");
-    tbody.innerHTML = "";
-
-    let log = JSON.parse(localStorage.getItem("vydajLog") || "[]");
-
-    log.forEach(z => {
-        const row = `
-            <tr>
-                <td>${z.cisloMaterialu}</td>
-                <td>${z.datum}</td>
-                <td>${z.cas}</td>
-                <td>${z.nazovDielu}</td>
-                <td>${z.pocet}</td>
-                <td>${z.zona}</td>
-                <td>${z.stanica}</td>
-                <td>${z.ziadatel}</td>
-                <td>${z.vydal}</td>
-            </tr>
-        `;
-        tbody.innerHTML += row;
-    });
-}
-
-/* ---------------- VYMAZANIE ---------------- */
-function vymazVsetko() {
-    if (confirm("Naozaj chceš vymazať všetky záznamy?")) {
-        localStorage.removeItem("vydajLog");
-        zobrazTabulku();
-    }
-}
-
-/* ---------------- EXPORT DO EXCELU + MS TEAMS ---------------- */
-function exportExcel() {
-    let log = JSON.parse(localStorage.getItem("vydajLog") || "[]");
-
-    if (log.length === 0) {
-        alert("Žiadne záznamy na export");
-        return;
-    }
-
-    const worksheet = XLSX.utils.json_to_sheet(log);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Vydaj");
-
-    const excelBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
-    const file = new File([excelBuffer], "vydaj.xlsx", {
-        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    });
-
-    if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-        navigator.share({
-            title: "Výdaj materiálu",
-            text: "Export výdaja materiálu",
-            files: [file]
-        });
-    } else {
-        const blob = new Blob([excelBuffer], {
-            type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = "vydaj.xlsx";
-        a.click();
-        URL.revokeObjectURL(url);
-    }
-}
-
-/* ---------------- LAN PRIPOJENIE ---------------- */
-async function connectPrinterLAN() {
-    const ip = document.getElementById("printerIP").value.trim();
-    if (!ip) {
-        alert("Zadaj IP adresu tlačiarne");
-        return;
-    }
-
-    try {
-        await fetch(`http://${ip}:9100`, { method: "POST", body: "" });
-        document.getElementById("printerStatus").innerText = "Tlačiareň online ✔";
-    } catch {
-        document.getElementById("printerStatus").innerText = "Tlačiareň nedostupná ✖";
-    }
-}
-
-/* ---------------- TLAČ ETIKETY CEZ IP ---------------- */
-async function printLabel() {
-    const data = document.getElementById("etiketaText").value.trim();
-    const ip = document.getElementById("printerIP").value.trim();
-
-    if (!data) {
-        alert("Zadaj číslo pre QR kód");
-        return;
-    }
-    if (!ip) {
-        alert("Zadaj IP adresu tlačiarne");
-        return;
-    }
-
-    const zpl = `
-^XA
-^FO50,50^BQN,2,6^FDLA,${data}^FS
-^FO50,300^A0N,60,60^FD${data}^FS
-^XZ`;
-
-    await fetch(`http://${ip}:9100`, {
-        method: "POST",
-        body: zpl
-    });
-
-    document.getElementById("printerStatus").innerText = "Etiketa odoslaná ✔";
-}
-</script>
-
-</body>
-</html>
-</div>
 /* ---------------- ULOŽENIE VÝDAJA ---------------- */
 function ulozVydaj() {
     const cisloMaterialu = document.getElementById("cisloMaterialu").value.trim();
