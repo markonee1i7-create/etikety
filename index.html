@@ -273,7 +273,7 @@ function switchPrinterMode() {
     }
 }
 
-/* ---------------- USB PRIPOJENIE ---------------- */
+/* ---------------- USB PRIPOJENIE (OPRAVENÉ) ---------------- */
 let zebraDevice = null;
 
 async function connectPrinterUSB() {
@@ -284,11 +284,29 @@ async function connectPrinterUSB() {
 
         await zebraDevice.open();
         await zebraDevice.selectConfiguration(1);
-        await zebraDevice.claimInterface(0);
+
+        // Nájdeme interface s BULK OUT endpointom
+        const iface = zebraDevice.configuration.interfaces.find(i =>
+            i.alternate.endpoints.some(e => e.direction === "out" && e.type === "bulk")
+        );
+
+        if (!iface) {
+            document.getElementById("printerStatus").innerText =
+                "Nenašiel sa USB tlačový interface ✖";
+            return;
+        }
+
+        await zebraDevice.claimInterface(iface.interfaceNumber);
+
+        // Uložíme endpoint pre tlač
+        const outEndpoint = iface.alternate.endpoints.find(e => e.direction === "out").endpointNumber;
+        zebraDevice._outEndpoint = outEndpoint;
 
         document.getElementById("printerStatus").innerText =
             "Tlačiareň pripojená cez USB ✔";
+
     } catch (e) {
+        console.error(e);
         document.getElementById("printerStatus").innerText =
             "USB pripojenie zlyhalo ✖";
     }
@@ -352,7 +370,8 @@ async function printLabel() {
 
         const encoder = new TextEncoder();
         const zplBytes = encoder.encode(zpl);
-        await zebraDevice.transferOut(1, zplBytes);
+
+        await zebraDevice.transferOut(zebraDevice._outEndpoint, zplBytes);
 
         document.getElementById("printerStatus").innerText =
             "Etiketa vytlačená cez USB ✔";
@@ -427,18 +446,11 @@ function zobrazTabulku() {
         if (filterDate && z.datum !== new Date(filterDate).toLocaleDateString()) return;
 
         // SHIFT FILTER
-        if (filterShift !== "all") {
-            const [h, m, s] = z.cas.split(":").map(Number);
-            const time = h + m/60;
+        const [h, m, s] = z.cas.split(":").map(Number);
+        const time = h + m/60;
 
-            if (filterShift === "ranna") {
-                if (time < 6 || time >= 18) return;
-            }
-
-            if (filterShift === "nocna") {
-                if (!(time >= 18 || time < 6)) return;
-            }
-        }
+        if (filterShift === "ranna" && (time < 6 || time >= 18)) return;
+        if (filterShift === "nocna" && !(time >= 18 || time < 6)) return;
 
         const row = `
             <tr>
@@ -492,11 +504,11 @@ function shareExcel() {
     if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
         navigator.share({
             title: "Výdaj tovaru",
-            text: "Odfiltrované záznamy vo formáte Excel",
+            text: "Odfiltrované záznamy",
             files: [file]
         });
     } else {
-        alert("Toto zariadenie nepodporuje zdieľanie Excel súborov");
+        alert("Zdieľanie nie je podporované");
     }
 }
 
@@ -507,10 +519,7 @@ function vymazVsetko() {
         zobrazTabulku();
     }
 }
-
-window.onload = zobrazTabulku;
 </script>
 
 </body>
 </html>
-``
