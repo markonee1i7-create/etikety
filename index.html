@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>Sklad – Vydaj & Inventúra (v10 – vyblednuté QR: zoom, režim, torch)</title>
+  <title>Sklad – Vydaj & Inventúra (v11 – viditeľný náhľad, S/M/L rámik)</title>
   <meta name="theme-color" content="#0ea5a4" />
   <link rel="preconnect" href="https://unpkg.com" crossorigin>
   <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
@@ -11,6 +11,7 @@
   <style>
     :root{ --bg:#ffffff; --card:#ffffff; --muted:#e5e7eb; --acc:#0ea5a4; --text:#0b1215; --sub:#475569; --danger:#ef4444; --fs:clamp(18px,3.8vw,22px); --radius:16px; --pad:18px; --gap:14px }
     *{box-sizing:border-box}
+    html,body{height:100%}
     body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--text);font-size:var(--fs)}
     .wrap{max-width:980px;margin:0 auto;padding:12px}
     header{display:flex;align-items:center;gap:8px;margin-bottom:8px}
@@ -40,21 +41,24 @@
     .sticky-bar{position:sticky;bottom:0;background:linear-gradient(180deg, rgba(255,255,255,0), #ffffff 50%);padding-top:8px}
     .sticky-inner{position:sticky;bottom:8px}
 
-    /* Fullscreen scanner overlay */
-    .scan-overlay{position:fixed;inset:0;background:#000000;z-index:9999;display:none;flex-direction:column}
+    /* Fullscreen scanner overlay - kompaktná hlavička a auto-hide */
+    .scan-overlay{position:fixed;inset:0;background:#000;z-index:9999;display:none;flex-direction:column}
     .scan-overlay.active{display:flex}
-    .scan-header{display:flex;gap:8px;justify-content:space-between;align-items:center;padding:10px 14px;color:#fff;background:rgba(0,0,0,.4)}
+    .scan-header{display:flex;gap:8px;justify-content:space-between;align-items:center;padding:10px 12px;color:#fff;background:rgba(0,0,0,.35)}
     .scan-title{font-weight:800}
     .scan-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-    .scan-btn{background:#111827;color:#fff;border:none;border-radius:12px;padding:10px 14px;font-weight:800}
-    .scan-btn[disabled]{opacity:.4}
-    .scan-mode{background:#0ea5a4}
+    .scan-btn{background:#111827;color:#fff;border:none;border-radius:12px;padding:9px 12px;font-weight:800}
+    .scan-btn.small{padding:6px 10px;border-radius:10px}
+    .scan-header.hidden{opacity:0;pointer-events:none;transition:opacity .25s ease}
+    .scan-header.visible{opacity:1;transition:opacity .25s ease}
     .scan-body{flex:1;display:flex;align-items:center;justify-content:center;padding:8px}
-    .scan-footer{padding:8px;color:#cbd5e1;text-align:center}
-    #fullscreen-scanner{width:100%;max-width:980px;border:2px dashed rgba(255,255,255,.2);border-radius:18px;min-height:60vh}
+    .scan-footer{padding:6px;color:#cbd5e1;text-align:center}
+    #fullscreen-scanner{width:100%;height:100%;}
 
-    .error{border-color:#ef4444 !important; box-shadow:0 0 0 4px rgba(239,68,68,.2) !important}
-    .hint{color:#ef4444;font-size:.9em}
+    .size-indicator{background:rgba(255,255,255,.08);color:#e2e8f0;border-radius:10px;padding:4px 8px;font-size:.85em}
+
+    .rotate-overlay{display:none}
+    @media(orientation:landscape){.rotate-overlay{display:flex;position:fixed;inset:0;background:rgba(0,0,0,.84);color:#fff;align-items:center;justify-content:center;z-index:10000;text-align:center;padding:24px}}
   </style>
 </head>
 <body>
@@ -143,24 +147,28 @@
 
   <!-- Fullscreen skener -->
   <div id="scanOverlay" class="scan-overlay" aria-hidden="true">
-    <div class="scan-header">
-      <div class="scan-title">Skenovanie kódu</div>
+    <div id="scanHeader" class="scan-header visible" role="toolbar">
+      <div class="scan-title">Skenovanie <span id="sizeLabel" class="size-indicator">Rámik: M</span></div>
       <div class="scan-actions">
-        <button id="modeToggle" class="scan-btn scan-mode" title="Rýchly režim QR vs. Všetky kódy">⚡ Režim: QR (rýchly)</button>
-        <button id="fadedToggle" class="scan-btn" title="Režim pre vyblednuté QR (viac pixelov, silnejšie svetlo)">🟤 Režim: Vyblednutý</button>
-        <button id="zoomOut" class="scan-btn" style="display:none">🔎− Zoom</button>
-        <button id="zoomIn" class="scan-btn" style="display:none">🔍+ Zoom</button>
-        <button id="torchToggle" class="scan-btn" style="display:none">💡 Prisvietiť</button>
-        <button id="scanClose" class="scan-btn">✕ Zavrieť</button>
+        <button id="modeToggle" class="scan-btn small" title="Rýchly režim QR vs. Všetky kódy">⚡ QR</button>
+        <button id="fadedToggle" class="scan-btn small" title="Režim pre vyblednuté QR">🟤 OFF</button>
+        <button id="sizeToggle" class="scan-btn small" title="Zmeniť veľkosť rámika (S/M/L)">🔳 S/M/L</button>
+        <button id="zoomOut" class="scan-btn small" style="display:none">🔎−</button>
+        <button id="zoomIn" class="scan-btn small" style="display:none">🔍+</button>
+        <button id="torchToggle" class="scan-btn small" style="display:none">💡</button>
+        <button id="scanClose" class="scan-btn small">✕</button>
       </div>
     </div>
-    <div class="scan-body">
-      <div id="fullscreen-scanner"></div>
+    <div id="scanBody" class="scan-body">
+      <div id="fullscreen-scanner" aria-label="oblasť skenovania"></div>
     </div>
-    <div class="scan-footer">Tip: pri vyblednutých kódoch skús „🟤 Vyblednutý“ + prisvietenie + priblíženie o 1–2 kroky.</div>
+    <div class="scan-footer">Tip: klepni hocikde na náhľad pre zobrazenie/ukrytie panelu.</div>
   </div>
 
+  <div class="rotate-overlay">Prosím používaj aplikáciu <b>v režime na výšku</b>. Otoč zariadenie.</div>
+
   <script>
+    // Tabs
     const tabs = document.querySelectorAll('.tab');
     const panels = document.querySelectorAll('.panel');
     tabs.forEach(t => t.addEventListener('click', () => {
@@ -171,22 +179,41 @@
       stopScanner();
     }));
 
+    // Overlay elems
     const overlay = document.getElementById('scanOverlay');
+    const scanHeader = document.getElementById('scanHeader');
+    const scanBody = document.getElementById('scanBody');
     const overlayClose = document.getElementById('scanClose');
     const torchToggle = document.getElementById('torchToggle');
     const modeToggle = document.getElementById('modeToggle');
     const fadedToggle = document.getElementById('fadedToggle');
     const zoomIn = document.getElementById('zoomIn');
     const zoomOut = document.getElementById('zoomOut');
+    const sizeToggle = document.getElementById('sizeToggle');
+    const sizeLabel = document.getElementById('sizeLabel');
 
-    let current = { id:null, instance:null, torch:false, target:null, fastQr:true, faded:false, zoom:1.0, zoomMax:1.0 };
+    // Stav
+    let current = { instance:null, torch:false, target:null, fastQr:true, faded:false, zoom:1.0, zoomMax:1.0, frameSize:'M' };
+    let headerHideTimer = null;
 
+    // Auto-hide header po 2s a toggle tapom
+    function showHeaderTemp(){
+      scanHeader.classList.remove('hidden');
+      scanHeader.classList.add('visible');
+      clearTimeout(headerHideTimer);
+      headerHideTimer = setTimeout(()=>{ scanHeader.classList.remove('visible'); scanHeader.classList.add('hidden'); }, 2000);
+    }
+    scanBody.addEventListener('click', showHeaderTemp);
+
+    // Výpočet qrbox podľa S/M/L + režimy
     function computeQrbox(viewWidth, viewHeight){
-      const base = current.faded ? 0.85 : 0.72; // vyblednuté -> väčší výrez
-      const edge = Math.floor(Math.min(viewWidth, viewHeight) * base);
-      const min = current.faded ? 320 : 260;
-      const max = current.faded ? 480 : 420;
-      return { width: Math.max(min, Math.min(max, edge)), height: Math.max(min, Math.min(max, edge)) };
+      const short = Math.min(viewWidth, viewHeight);
+      let basePerc = 0.60; // M
+      if(current.frameSize==='S') basePerc = 0.48;
+      if(current.frameSize==='L') basePerc = 0.72;
+      if(current.faded) basePerc = Math.min(0.85, basePerc + 0.08); // pri vyblednutých trochu väčšie
+      const edge = Math.floor(short * basePerc);
+      return { width: edge, height: edge };
     }
 
     async function pickBackCamera(){
@@ -199,14 +226,16 @@
     }
 
     function buildFormats(){
-      if(current.fastQr){ return [ Html5QrcodeSupportedFormats.QR_CODE ]; }
-      return [ Html5QrcodeSupportedFormats.QR_CODE, Html5QrcodeSupportedFormats.CODE_128, Html5QrcodeSupportedFormats.CODE_39, Html5QrcodeSupportedFormats.CODE_93, Html5QrcodeSupportedFormats.EAN_13, Html5QrcodeSupportedFormats.EAN_8, Html5QrcodeSupportedFormats.UPC_A, Html5QrcodeSupportedFormats.UPC_E, Html5QrcodeSupportedFormats.ITF, Html5QrcodeSupportedFormats.PDF_417, Html5QrcodeSupportedFormats.DATA_MATRIX ];
+      return current.fastQr ? [ Html5QrcodeSupportedFormats.QR_CODE ] : [ Html5QrcodeSupportedFormats.QR_CODE, Html5QrcodeSupportedFormats.CODE_128, Html5QrcodeSupportedFormats.CODE_39, Html5QrcodeSupportedFormats.CODE_93, Html5QrcodeSupportedFormats.EAN_13, Html5QrcodeSupportedFormats.EAN_8, Html5QrcodeSupportedFormats.UPC_A, Html5QrcodeSupportedFormats.UPC_E, Html5QrcodeSupportedFormats.ITF, Html5QrcodeSupportedFormats.PDF_417, Html5QrcodeSupportedFormats.DATA_MATRIX ];
     }
 
+    function updateSizeLabel(){ sizeLabel.textContent = `Rámik: ${current.frameSize}`; }
+
     async function startFullscreenScanner(targetInputId){
-      try{ document.activeElement && document.activeElement.blur && document.activeElement.blur(); }catch(e){}
+      document.activeElement && document.activeElement.blur && document.activeElement.blur();
       overlay.classList.add('active');
       document.body.style.overflow='hidden';
+      showHeaderTemp();
 
       if(current.instance) await stopScanner();
 
@@ -214,12 +243,12 @@
       current.instance = html5Qr; current.target = targetInputId; current.torch = false; current.zoom = 1.0; current.zoomMax = 1.0;
 
       const scanConfig = {
-        fps: current.faded ? 14 : 18, // vyblednuté: daj mierne nižšie FPS, nech má dekóder viac času na frame
+        fps: current.faded ? 14 : 18,
         qrbox: computeQrbox,
         disableFlip: true,
         aspectRatio: 1.3333,
         rememberLastUsedCamera: true,
-        videoConstraints: { width: { ideal: current.faded ? 1920 : 1920 }, height: { ideal: current.faded ? 1440 : 1080 }, facingMode: { exact: 'environment' } },
+        videoConstraints: { width: { ideal: 1920 }, height: { ideal: current.faded ? 1440 : 1080 }, facingMode: { exact: 'environment' } },
         formatsToSupport: buildFormats()
       };
 
@@ -237,16 +266,13 @@
         const video = document.querySelector('#fullscreen-scanner video');
         if(video){ video.setAttribute('playsinline','true'); video.setAttribute('webkit-playsinline','true'); video.setAttribute('autoplay','true'); video.setAttribute('muted','true'); }
 
-        // Po štarte nastav kontinuálne ostrenie + jemný zoom; sprístupni torch a zoom tlačidlá, ak sú podporované
         try{
           const caps = html5Qr.getRunningTrackCapabilities && html5Qr.getRunningTrackCapabilities();
-          const constraints = { advanced: [] };
-          if(caps && caps.focusMode){ constraints.focusMode = 'continuous'; }
-          if(caps && caps.exposureMode){ constraints.exposureMode = 'continuous'; }
-          if(caps && caps.zoom && caps.zoom.max){ current.zoomMax = Math.min(3.0, caps.zoom.max); current.zoom = current.faded ? Math.min(2.0, current.zoomMax) : 1.2; constraints.advanced.push({ zoom: current.zoom }); zoomIn.style.display='inline-flex'; zoomOut.style.display='inline-flex'; } else { zoomIn.style.display='none'; zoomOut.style.display='none'; }
-          if(Object.keys(constraints).length || (constraints.advanced && constraints.advanced.length)){
-            await html5Qr.applyVideoConstraints(constraints);
-          }
+          const cons = { advanced: [] };
+          if(caps && caps.focusMode){ cons.focusMode = 'continuous'; }
+          if(caps && caps.exposureMode){ cons.exposureMode = 'continuous'; }
+          if(caps && caps.zoom && caps.zoom.max){ current.zoomMax = Math.min(3.0, caps.zoom.max); current.zoom = current.faded ? Math.min(2.0, current.zoomMax) : 1.2; cons.advanced.push({ zoom: current.zoom }); zoomIn.style.display='inline-flex'; zoomOut.style.display='inline-flex'; } else { zoomIn.style.display='none'; zoomOut.style.display='none'; }
+          if(Object.keys(cons).length || (cons.advanced && cons.advanced.length)) await html5Qr.applyVideoConstraints(cons);
           if(caps && (caps.torch || (caps.advanced && 'torch' in caps))){ torchToggle.style.display='inline-flex'; torchToggle.disabled=false; } else { torchToggle.style.display='none'; }
         }catch(e){ torchToggle.style.display='none'; zoomIn.style.display='none'; zoomOut.style.display='none'; }
       }catch(e){
@@ -257,7 +283,10 @@
     }
 
     async function stopScanner(){
-      torchToggle.textContent='💡 Prisvietiť';
+      clearTimeout(headerHideTimer);
+      scanHeader.classList.remove('hidden');
+      scanHeader.classList.add('visible');
+      torchToggle.textContent='💡';
       current.torch=false;
       if(current.instance){
         try{ await current.instance.stop(); }catch(e){}
@@ -268,17 +297,19 @@
       document.body.style.overflow='auto';
     }
 
+    // Ovládanie
     torchToggle.addEventListener('click', async () => {
       if(!current.instance) return;
       try{
         const caps = current.instance.getRunningTrackCapabilities && current.instance.getRunningTrackCapabilities();
         if(caps && (caps.torch || (caps.advanced && 'torch' in caps))){
           current.torch = !current.torch;
-          const constraints = { advanced: [{ torch: current.torch }] };
-          if(current.instance.applyVideoConstraints) await current.instance.applyVideoConstraints(constraints);
-          torchToggle.textContent = current.torch ? '💡 Prisvietenie: ON' : '💡 Prisvietiť';
-        } else { alert('Tvoja kamera/prehliadač nepodporuje prisvietenie.'); }
+          const c = { advanced: [{ torch: current.torch }] };
+          if(current.instance.applyVideoConstraints) await current.instance.applyVideoConstraints(c);
+          torchToggle.textContent = current.torch ? '💡ON' : '💡';
+        }
       }catch(e){ console.warn('Torch toggle failed', e); }
+      showHeaderTemp();
     });
 
     async function applyZoom(delta){
@@ -289,6 +320,7 @@
         current.zoom = next;
         await current.instance.applyVideoConstraints({ advanced: [{ zoom: current.zoom }] });
       }catch(e){ console.warn('Zoom failed', e); }
+      showHeaderTemp();
     }
 
     zoomIn.addEventListener('click', ()=> applyZoom(+0.25));
@@ -296,21 +328,30 @@
 
     modeToggle.addEventListener('click', async () => {
       current.fastQr = !current.fastQr;
-      modeToggle.textContent = current.fastQr ? '⚡ Režim: QR (rýchly)' : '📦 Režim: Všetky kódy';
+      modeToggle.textContent = current.fastQr ? '⚡ QR' : '📦 ALL';
       if(current.instance){ const tgt = current.target || 'issue-cjl'; await stopScanner(); startFullscreenScanner(tgt); }
+      showHeaderTemp();
     });
 
     fadedToggle.addEventListener('click', async () => {
       current.faded = !current.faded;
-      fadedToggle.textContent = current.faded ? '🟤 Režim: Vyblednutý (ON)' : '🟤 Režim: Vyblednutý';
+      fadedToggle.textContent = current.faded ? '🟤 ON' : '🟤 OFF';
       if(current.instance){ const tgt = current.target || 'issue-cjl'; await stopScanner(); startFullscreenScanner(tgt); }
+      showHeaderTemp();
+    });
+
+    sizeToggle.addEventListener('click', async () => {
+      current.frameSize = current.frameSize==='S' ? 'M' : current.frameSize==='M' ? 'L' : 'S';
+      updateSizeLabel();
+      if(current.instance){ const tgt = current.target || 'issue-cjl'; await stopScanner(); startFullscreenScanner(tgt); }
+      showHeaderTemp();
     });
 
     document.getElementById('issue-scan').addEventListener('click', () => startFullscreenScanner('issue-cjl'));
     document.getElementById('inv-scan').addEventListener('click', () => startFullscreenScanner('inv-cjl'));
     document.getElementById('scanClose').addEventListener('click', stopScanner);
 
-    // --- Lokálna pamäť (predvoľby) ---
+    // Lokálne preferencie
     const PREF_KEY = 'issueDefaults';
     function saveDefaults(){
       const data = {
@@ -333,9 +374,7 @@
       }catch(e){}
     }
 
-    ['issue-zone','issue-station','issue-requester','issue-issuer','issue-cjl','issue-qty','inv-cjl','inv-qty'].forEach(id => {
-      document.addEventListener('input', (ev)=>{ if(ev.target && ev.target.id===id){ ev.target.classList.remove('error'); if(['issue-zone','issue-station','issue-requester','issue-issuer'].includes(id)) saveDefaults(); }});
-    });
+    function enforceIntegerInput(el){ el.addEventListener('input', (e)=>{ e.target.value = e.target.value.replace(/\D+/g,''); }); el.addEventListener('blur', (e)=>{ if(e.target.value==='') e.target.value='0'; }); }
 
     function requireFilled(ids){
       let ok=true;
@@ -355,41 +394,17 @@
       tbody.prepend(tr);
     }
 
-    function nowParts(){
-      const d = new Date();
-      const pad=n=>String(n).padStart(2,'0');
-      return { date: `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`, time: `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}` };
-    }
+    function nowParts(){ const d = new Date(); const p=n=>String(n).padStart(2,'0'); return { date: `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`, time: `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}` }; }
 
-    function tableToAoA(tableId){
-      const rows = Array.from(document.querySelectorAll('#'+tableId+' tr'));
-      return rows.map(r => Array.from(r.querySelectorAll('th,td')).map(c => (c.textContent||'')));
-    }
+    function tableToAoA(tableId){ const rows = Array.from(document.querySelectorAll('#'+tableId+' tr')); return rows.map(r => Array.from(r.querySelectorAll('th,td')).map(c => (c.textContent||''))); }
 
-    async function shareXlsx(tableId, filename){
-      try{
-        const aoa = tableToAoA(tableId);
-        const ws = XLSX.utils.aoa_to_sheet(aoa);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, 'Data');
-        const ab = XLSX.write(wb, { bookType:'xlsx', type:'array' });
-        const file = new File([ab], filename, { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-        if(navigator.canShare && navigator.canShare({ files:[file] }) && navigator.share){
-          await navigator.share({ files:[file], title:'Výdaj – Excel', text:'Súbor .xlsx pre Teams/Excel' });
-        } else {
-          const url = URL.createObjectURL(new Blob([ab], {type:file.type}));
-          const a = document.createElement('a'); a.href = url; a.download = filename; a.click(); URL.revokeObjectURL(url);
-          alert('Zdieľanie nie je podporované – súbor sa stiahol, prilož ho do Teams.');
-        }
-      }catch(e){ console.error(e); alert('Zdieľanie do Teams zlyhalo.'); }
-    }
+    async function shareXlsx(tableId, filename){ try{ const aoa = tableToAoA(tableId); const ws = XLSX.utils.aoa_to_sheet(aoa); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Data'); const ab = XLSX.write(wb, { bookType:'xlsx', type:'array' }); const file = new File([ab], filename, { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }); if(navigator.canShare && navigator.canShare({ files:[file] }) && navigator.share){ await navigator.share({ files:[file], title:'Výdaj – Excel', text:'Súbor .xlsx pre Teams/Excel' }); } else { const url = URL.createObjectURL(new Blob([ab], {type:file.type})); const a = document.createElement('a'); a.href = url; a.download = filename; a.click(); URL.revokeObjectURL(url); alert('Zdieľanie nie je podporované – súbor sa stiahol, prilož ho do Teams.'); } }catch(e){ console.error(e); alert('Zdieľanie do Teams zlyhalo.'); } }
 
-    function enforceIntegerInput(el){ el.addEventListener('input', (e)=>{ e.target.value = e.target.value.replace(/\D+/g,''); }); el.addEventListener('blur', (e)=>{ if(e.target.value==='') e.target.value='0'; }); }
+    // Handlery mimo skenera
     enforceIntegerInput(document.getElementById('issue-qty'));
     enforceIntegerInput(document.getElementById('inv-qty'));
 
     const issueStack = [];
-
     function confirmIssue(){
       const requiredIds = ['issue-cjl','issue-zone','issue-station','issue-requester','issue-issuer','issue-qty'];
       if(!requireFilled(requiredIds)) return;
@@ -425,7 +440,6 @@
     });
 
     document.getElementById('issue-share-xlsx').addEventListener('click', () => shareXlsx('issue-table', 'vydaj.xlsx'));
-
     document.getElementById('issue-cjl').addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ e.preventDefault(); confirmIssue(); }});
 
     document.getElementById('inv-add').addEventListener('click', () => {
@@ -440,8 +454,10 @@
     loadDefaults();
     if(!document.getElementById('issue-qty').value) document.getElementById('issue-qty').value='1';
 
-    window.addEventListener('beforeunload', () => { try{ stopScanner(); }catch(e){} });
-    document.addEventListener('visibilitychange', () => { if(document.hidden) stopScanner(); });
+    // Buttons
+    document.getElementById('issue-scan').addEventListener('click', () => startFullscreenScanner('issue-cjl'));
+    document.getElementById('inv-scan').addEventListener('click', () => startFullscreenScanner('inv-cjl'));
+    overlayClose.addEventListener('click', stopScanner);
   </script>
 </body>
 </html>
