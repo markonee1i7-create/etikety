@@ -3,23 +3,22 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>Sklad – Vydaj & Inventúra (fix QR tlačidla)</title>
+  <title>Sklad – Vydaj & Inventúra</title>
   <meta name="theme-color" content="#0f766e" />
   <link rel="preconnect" href="https://unpkg.com" crossorigin>
   <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
   <script src="https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <style>
-    :root{--bg:#0b1215;--card:#0f1720;--muted:#1a2730;--acc:#0ea5a4;--text:#ecf4f6;--sub:#9fb3bd;--danger:#ef4444;--fs:clamp(18px,3.8vw,22px);--radius:16px;--pad:18px;--gap:14px}
+    :root{ --bg:#0b1215; --card:#0f1720; --muted:#1a2730; --acc:#0ea5a4; --text:#ecf4f6; --sub:#9fb3bd; --danger:#ef4444; --fs:clamp(18px,3.8vw,22px); --radius:16px; --pad:18px; --gap:14px }
     *{box-sizing:border-box}
     body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Helvetica,Arial,sans-serif;background:#071017;color:var(--text);font-size:var(--fs)}
     .wrap{max-width:980px;margin:0 auto;padding:12px}
-    header{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
+    header{display:flex;align-items:center;gap:8px;margin-bottom:8px}
     header h1{margin:0;font-weight:800;font-size:clamp(20px,4.2vw,28px)}
-    header .badge{background:var(--muted);color:var(--sub);padding:6px 12px;border-radius:999px;font-size:.85em}
     .tabs{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:8px 0}
     .tab{border:2px solid var(--muted);background:var(--card);color:var(--text);padding:14px 16px;border-radius:var(--radius);cursor:pointer;font-weight:800}
     .tab[aria-selected="true"]{background:linear-gradient(180deg,#0f2a2e,#0c2025);border-color:#1a5b61;box-shadow:0 0 0 3px rgba(14,165,164,.18) inset}
-    .panel{display:none;background:var(--card);border:2px solid var(--muted);border-radius:var(--radius);padding:var(--pad);min-height:calc(100vh - 170px)}
+    .panel{display:none;background:var(--card);border:2px solid var(--muted);border-radius:var(--radius);padding:var(--pad);min-height:calc(100vh - 150px)}
     .panel.active{display:block}
     .label{color:var(--sub);margin-bottom:6px;font-weight:700}
     input[type="text"],input[data-numeric]{width:100%;background:#0b1215;color:var(--text);border:2px solid var(--muted);border-radius:var(--radius);padding:18px 16px;font-size:1em;outline:none}
@@ -30,12 +29,13 @@
     .btn.danger{background:#391b1b;border-color:#6a2f2f}
     .actions{display:grid;grid-template-columns:1fr 1fr;gap:var(--gap);margin-top:var(--gap)}
     .actions input[data-numeric]{grid-column:1/-1}
-    .list{margin-top:14px;border-top:2px solid var(--muted);padding-top:10px;max-height:36vh;overflow:auto}
+    .btn.wide{grid-column:1/-1}
+    .list{margin-top:14px;border-top:2px solid var(--muted);padding-top:10px;max-height:38vh;overflow:auto}
     table{width:100%;border-collapse:separate;border-spacing:0 10px;font-size:.95em}
     th,td{padding:16px;background:#0b1215;border:2px solid var(--muted)}
     th{color:var(--sub);background:#0e1820;font-weight:800;position:sticky;top:0;z-index:1}
     .scanner{margin-top:10px;display:none;border:2px dashed #2a3f46;border-radius:var(--radius);padding:8px;position:relative}
-    .scanner.active{display:block;min-height:340px}
+    .scanner.active{display:block;min-height:360px}
     .scanner-note{font-size:.85em;color:var(--sub);margin-top:6px}
     .rotate-overlay{display:none}
     @media(orientation:landscape){.rotate-overlay{display:flex;position:fixed;inset:0;background:rgba(0,0,0,.94);color:#fff;align-items:center;justify-content:center;z-index:9999;text-align:center;padding:24px}}
@@ -45,7 +45,6 @@
   <div class="wrap">
     <header>
       <h1>Sklad – Vydaj & Inventúra</h1>
-      <span class="badge">Portrét iba • iPhone SE optimalizované</span>
     </header>
 
     <nav class="tabs" role="tablist" aria-label="Sekcie">
@@ -53,53 +52,71 @@
       <button class="tab" role="tab" id="tab-inventory" aria-controls="panel-inventory" aria-selected="false">Inventúra</button>
     </nav>
 
+    <!-- Vydaj -->
     <section class="panel active" id="panel-issue" role="tabpanel" aria-labelledby="tab-issue">
       <div class="label">CJL číslo</div>
       <div class="row">
         <input id="issue-cjl" type="text" placeholder="Zadaj alebo naskenuj CJL číslo" autocomplete="off" />
-        <button class="btn acc" id="issue-scan">📷 Skenovať QR</button>
+        <div id="issue-scanner" class="scanner" aria-live="polite"></div>
+        <div class="scanner-note" id="issue-scanner-note" style="display:none">Ak sa nespustí kamera: skontroluj povolenia pre kameru v Safari a či stránka beží na HTTPS.</div>
+        <button class="btn acc" id="issue-scan">📷 Skenovať kód</button>
       </div>
+
       <div class="label">Zóna</div>
       <div class="row"><input id="issue-zone" type="text" placeholder="Zadaj zónu" autocomplete="off" /></div>
+
       <div class="label">Stanica</div>
       <div class="row"><input id="issue-station" type="text" placeholder="Zadaj stanicu" autocomplete="off" /></div>
+
       <div class="label">Žiadateľ CDSID</div>
       <div class="row"><input id="issue-requester" type="text" placeholder="napr. ab1234" autocomplete="off" /></div>
+
       <div class="label">Vydal CDSID</div>
       <div class="row"><input id="issue-issuer" type="text" placeholder="napr. cd5678" autocomplete="off" /></div>
 
-      <div id="issue-scanner" class="scanner"></div>
-      <div class="scanner-note" id="issue-scanner-note" style="display:none">Ak sa nespustí kamera: skontroluj povolenia pre kameru v Safari a či stránka beží na HTTPS.</div>
-
       <div class="actions">
         <input id="issue-qty" data-numeric type="text" inputmode="numeric" pattern="[0-9]*" placeholder="Množstvo (celé číslo)" />
-        <button class="btn" id="issue-add">✅ Potvr výdaj</button>
+        <button class="btn wide" id="issue-add">✅ Potvr výdaj</button>
         <button class="btn" id="issue-undo">↩️ Undo posledného výdaja</button>
-        <button class="btn" id="issue-export-xlsx">⬇️ Export Excel (.xlsx)</button>
-        <button class="btn" id="issue-share-xlsx">🔗 Zdieľať do Teams (.xlsx)</button>
+        <button class="btn" id="issue-share-xlsx">🔗 Zdieľať Excel do Teams (.xlsx)</button>
       </div>
+
       <div class="list">
-        <table id="issue-table">
-          <thead><tr><th>Dátum</th><th>Čas</th><th>CJL číslo</th><th>Množstvo</th><th>Zóna</th><th>Stanica</th><th>Žiadateľ CDSID</th><th>Vydal CDSID</th></tr></thead>
+        <table id="issue-table" aria-label="História výdajov">
+          <thead>
+            <tr>
+              <th>Dátum</th>
+              <th>Čas</th>
+              <th>CJL číslo</th>
+              <th>Množstvo</th>
+              <th>Zóna</th>
+              <th>Stanica</th>
+              <th>Žiadateľ CDSID</th>
+              <th>Vydal CDSID</th>
+            </tr>
+          </thead>
           <tbody></tbody>
         </table>
       </div>
     </section>
 
+    <!-- Inventúra (ponechaná základná) -->
     <section class="panel" id="panel-inventory" role="tabpanel" aria-labelledby="tab-inventory">
       <div class="label">CJL číslo</div>
       <div class="row">
         <input id="inv-cjl" type="text" placeholder="Zadaj alebo naskenuj CJL číslo" autocomplete="off" />
-        <button class="btn acc" id="inv-scan">📷 Skenovať QR</button>
+        <div id="inv-scanner" class="scanner" aria-live="polite"></div>
+        <button class="btn acc" id="inv-scan">📷 Skenovať kód</button>
       </div>
-      <div id="inv-scanner" class="scanner"></div>
       <div class="actions">
         <input id="inv-qty" data-numeric type="text" inputmode="numeric" pattern="[0-9]*" placeholder="Počet (celé číslo)" />
         <button class="btn" id="inv-add">➕ Pridať do zoznamu</button>
-        <button class="btn" id="inv-export-xlsx">⬇️ Export Excel (.xlsx)</button>
       </div>
       <div class="list">
-        <table id="inv-table"><thead><tr><th>Čas</th><th>CJL číslo</th><th>Počet</th></tr></thead><tbody></tbody></table>
+        <table id="inv-table" aria-label="História inventúr">
+          <thead><tr><th>Čas</th><th>CJL číslo</th><th>Počet</th></tr></thead>
+          <tbody></tbody>
+        </table>
       </div>
     </section>
   </div>
@@ -107,6 +124,7 @@
   <div class="rotate-overlay">Prosím používaj aplikáciu <b>v režime na výšku</b>. Otoč zariadenie.</div>
 
   <script>
+    // --- Tabs ---
     const tabs = document.querySelectorAll('.tab');
     const panels = document.querySelectorAll('.panel');
     tabs.forEach(t => t.addEventListener('click', () => {
@@ -117,11 +135,12 @@
       stopScanner();
     }));
 
+    // --- Scanner lifecycle (QR + čiarové kódy) ---
     let current = { id:null, instance:null };
 
     function computeQrbox(viewWidth, viewHeight){
-      const size = Math.floor(Math.min(viewWidth, viewHeight) * 0.78);
-      const edge = Math.max(220, Math.min(360, size));
+      const size = Math.floor(Math.min(viewWidth, viewHeight) * 0.82);
+      const edge = Math.max(240, Math.min(380, size));
       return { width: edge, height: edge };
     }
 
@@ -143,14 +162,30 @@
       const target = document.getElementById(divId);
       target.classList.add('active');
 
-      const html5Qr = new Html5Qrcode(divId, { verbose: true });
+      const formats = [
+        Html5QrcodeSupportedFormats.QR_CODE,
+        Html5QrcodeSupportedFormats.CODE_128,
+        Html5QrcodeSupportedFormats.CODE_39,
+        Html5QrcodeSupportedFormats.CODE_93,
+        Html5QrcodeSupportedFormats.EAN_13,
+        Html5QrcodeSupportedFormats.EAN_8,
+        Html5QrcodeSupportedFormats.UPC_A,
+        Html5QrcodeSupportedFormats.UPC_E,
+        Html5QrcodeSupportedFormats.ITF,
+        Html5QrcodeSupportedFormats.PDF_417,
+        Html5QrcodeSupportedFormats.DATA_MATRIX
+      ];
+
+      const html5Qr = new Html5Qrcode(divId, { formatsToSupport: formats, verbose: false });
       current = { id: section, instance: html5Qr };
 
       const scanConfig = {
-        fps: 10,
+        fps: 15,
         qrbox: computeQrbox,
         disableFlip: true,
-        aspectRatio: 1.3333
+        aspectRatio: 1.3333,
+        rememberLastUsedCamera: true,
+        videoConstraints: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: { exact: 'environment' } }
       };
 
       const onScanSuccess = (decodedText) => {
@@ -162,22 +197,21 @@
 
       try{
         const backId = await pickBackCamera();
-        if(backId){
-          await html5Qr.start({ deviceId: { exact: backId } }, scanConfig, onScanSuccess, onScanError);
-        }else{
-          await html5Qr.start({ facingMode: { exact: 'environment' } }, scanConfig, onScanSuccess, onScanError);
-        }
+        if(backId){ await html5Qr.start({ deviceId: { exact: backId } }, scanConfig, onScanSuccess, onScanError); }
+        else { await html5Qr.start({ facingMode: { exact: 'environment' } }, scanConfig, onScanSuccess, onScanError); }
         const video = document.querySelector(`#${divId} video`);
-        if(video){
-          video.setAttribute('playsinline','true');
-          video.setAttribute('webkit-playsinline','true');
-          video.setAttribute('autoplay','true');
-          video.setAttribute('muted','true');
-        }
+        if(video){ video.setAttribute('playsinline','true'); video.setAttribute('webkit-playsinline','true'); video.setAttribute('autoplay','true'); video.setAttribute('muted','true'); }
+        try{
+          const cap = html5Qr.getRunningTrackCapabilities && html5Qr.getRunningTrackCapabilities();
+          if(cap && cap.zoom && cap.zoom.max){
+            const constraints = { advanced: [{ zoom: Math.min(1.5, cap.zoom.max) }] };
+            if(html5Qr.applyVideoConstraints) await html5Qr.applyVideoConstraints(constraints);
+          }
+        }catch(e){}
       }catch(e){
         console.error('QR start error:', e);
-        document.getElementById(section+'-scanner-note').style.display='block';
-        alert('Nepodarilo sa spustiť kameru.\n\nMožné príčiny:\n• Stránka nie je na HTTPS\n• Kamera nie je povolená v Safari\n• Iná appka už používa kameru');
+        const note = document.getElementById(section+'-scanner-note'); if(note) note.style.display='block';
+        alert('Nepodarilo sa spustiť kameru. Skontroluj HTTPS a povolenie kamery v Safari.');
         stopScanner();
       }
     }
@@ -195,12 +229,134 @@
     document.getElementById('issue-scan').addEventListener('click', () => startScanner('issue'));
     document.getElementById('inv-scan').addEventListener('click', () => startScanner('inv'));
 
-    // Integer-only inputs
+    // --- Lokálna pamäť (predvoľby) ---
+    const PREF_KEY = 'issueDefaults';
+    function saveDefaults(){
+      const data = {
+        zone: document.getElementById('issue-zone').value || '',
+        station: document.getElementById('issue-station').value || '',
+        requester: document.getElementById('issue-requester').value || '',
+        issuer: document.getElementById('issue-issuer').value || ''
+      };
+      try{ localStorage.setItem(PREF_KEY, JSON.stringify(data)); }catch(e){}
+    }
+    function loadDefaults(){
+      try{
+        const raw = localStorage.getItem(PREF_KEY);
+        if(!raw) return;
+        const d = JSON.parse(raw);
+        if(d.zone) document.getElementById('issue-zone').value = d.zone;
+        if(d.station) document.getElementById('issue-station').value = d.station;
+        if(d.requester) document.getElementById('issue-requester').value = d.requester;
+        if(d.issuer) document.getElementById('issue-issuer').value = d.issuer;
+      }catch(e){}
+    }
+    ['issue-zone','issue-station','issue-requester','issue-issuer'].forEach(id => {
+      document.addEventListener('input', (ev)=>{ if(ev.target && ev.target.id===id) saveDefaults(); });
+    });
+
+    // --- Pomocné ---
+    function addRow(tableId, values){
+      const tbody = document.querySelector('#' + tableId + ' tbody');
+      const tr = document.createElement('tr');
+      values.forEach(v => { const td = document.createElement('td'); td.textContent = v; tr.appendChild(td); });
+      tbody.prepend(tr);
+    }
+
+    function nowParts(){
+      const d = new Date();
+      const pad=n=>String(n).padStart(2,'0');
+      return { date: `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`, time: `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}` };
+    }
+
+    function tableToAoA(tableId){
+      const rows = Array.from(document.querySelectorAll('#'+tableId+' tr'));
+      return rows.map(r => Array.from(r.querySelectorAll('th,td')).map(c => (c.textContent||'')));
+    }
+
+    async function shareXlsx(tableId, filename){
+      try{
+        const aoa = tableToAoA(tableId);
+        const ws = XLSX.utils.aoa_to_sheet(aoa);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Data');
+        const ab = XLSX.write(wb, { bookType:'xlsx', type:'array' });
+        const file = new File([ab], filename, { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        if(navigator.canShare && navigator.canShare({ files:[file] }) && navigator.share){
+          await navigator.share({ files:[file], title:'Výdaj – Excel', text:'Súbor .xlsx pre Teams/Excel' });
+        } else {
+          const url = URL.createObjectURL(new Blob([ab], {type:file.type}));
+          const a = document.createElement('a'); a.href = url; a.download = filename; a.click(); URL.revokeObjectURL(url);
+          alert('Zdieľanie nie je podporované – súbor sa stiahol, prilož ho do Teams.');
+        }
+      }catch(e){ console.error(e); alert('Zdieľanie do Teams zlyhalo.'); }
+    }
+
+    // --- Strict integer input pre Množstvo ---
     function enforceIntegerInput(el){ el.addEventListener('input', (e)=>{ e.target.value = e.target.value.replace(/\D+/g,''); }); el.addEventListener('blur', (e)=>{ if(e.target.value==='') e.target.value='0'; }); }
     enforceIntegerInput(document.getElementById('issue-qty'));
     enforceIntegerInput(document.getElementById('inv-qty'));
 
-    // Minimal rest of logic omitted for brevity in this fix demo
+    // --- Undo zásobník pre Vydaj ---
+    const issueStack = [];
+
+    // Bezpečne pridať handler až po načítaní DOM – a odstrániť default submit správanie, ak by niekde vznikol implicitný <form>
+    document.getElementById('issue-add').addEventListener('click', (ev) => {
+      if(ev && ev.preventDefault) ev.preventDefault();
+      const cjl = document.getElementById('issue-cjl').value.trim();
+      const zone = document.getElementById('issue-zone').value.trim();
+      const station = document.getElementById('issue-station').value.trim();
+      const requester = document.getElementById('issue-requester').value.trim();
+      const issuer = document.getElementById('issue-issuer').value.trim();
+      let qty = document.getElementById('issue-qty').value.trim();
+      qty = qty.replace(/\D+/g,''); if(qty==='') qty='1';
+      if(!cjl){ alert('Zadaj CJL číslo.'); return; }
+      const t = nowParts();
+      const row = [t.date, t.time, cjl, qty, zone, station, requester, issuer];
+      addRow('issue-table', row);
+      issueStack.push({ row, restore:{ cjl, zone, station, requester, issuer, qty } });
+      document.getElementById('issue-cjl').value='';
+      saveDefaults();
+    });
+
+    document.getElementById('issue-undo').addEventListener('click', () => {
+      const tbody = document.querySelector('#issue-table tbody');
+      if(!tbody.firstChild || issueStack.length===0){ alert('Nie je čo vrátiť.'); return; }
+      tbody.removeChild(tbody.firstChild);
+      const last = issueStack.pop();
+      if(last && last.restore){
+        document.getElementById('issue-cjl').value = last.restore.cjl;
+        document.getElementById('issue-zone').value = last.restore.zone;
+        document.getElementById('issue-station').value = last.restore.station;
+        document.getElementById('issue-requester').value = last.restore.requester;
+        document.getElementById('issue-issuer').value = last.restore.issuer;
+        document.getElementById('issue-qty').value = last.restore.qty;
+        saveDefaults();
+      }
+    });
+
+    document.getElementById('issue-share-xlsx').addEventListener('click', () => shareXlsx('issue-table', 'vydaj.xlsx'));
+
+    // Enter = Potvr výdaj
+    document.getElementById('issue-cjl').addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ document.getElementById('issue-add').click(); }});
+
+    // Inventúra add
+    document.getElementById('inv-add').addEventListener('click', () => {
+      const cjl = document.getElementById('inv-cjl').value.trim();
+      let qty = document.getElementById('inv-qty').value.trim();
+      qty = qty.replace(/\D+/g,''); if(qty==='') qty='0';
+      if(!cjl){ alert('Zadaj CJL číslo.'); return; }
+      const t = nowParts();
+      addRow('inv-table', [`${t.date} ${t.time}`, cjl, qty]);
+      document.getElementById('inv-cjl').value='';
+    });
+
+    // Inicializácia
+    loadDefaults();
+    if(!document.getElementById('issue-qty').value) document.getElementById('issue-qty').value='1';
+
+    window.addEventListener('beforeunload', () => { try{ stopScanner(); }catch(e){} });
+    document.addEventListener('visibilitychange', () => { if(document.hidden) stopScanner(); });
   </script>
 </body>
 </html>
