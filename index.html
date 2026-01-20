@@ -4,41 +4,56 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>Sklad – Vydaj & Inventúra</title>
-  <meta name="theme-color" content="#0f766e" />
+  <meta name="theme-color" content="#0ea5a4" />
   <link rel="preconnect" href="https://unpkg.com" crossorigin>
   <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
   <script src="https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <style>
-    :root{ --bg:#0b1215; --card:#0f1720; --muted:#1a2730; --acc:#0ea5a4; --text:#ecf4f6; --sub:#9fb3bd; --danger:#ef4444; --fs:clamp(18px,3.8vw,22px); --radius:16px; --pad:18px; --gap:14px }
+    :root{ --bg:#ffffff; --card:#ffffff; --muted:#e5e7eb; --acc:#0ea5a4; --text:#0b1215; --sub:#475569; --danger:#ef4444; --fs:clamp(18px,3.8vw,22px); --radius:16px; --pad:18px; --gap:14px }
     *{box-sizing:border-box}
-    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Helvetica,Arial,sans-serif;background:#071017;color:var(--text);font-size:var(--fs)}
+    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--text);font-size:var(--fs)}
     .wrap{max-width:980px;margin:0 auto;padding:12px}
     header{display:flex;align-items:center;gap:8px;margin-bottom:8px}
     header h1{margin:0;font-weight:800;font-size:clamp(20px,4.2vw,28px)}
     .tabs{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:8px 0}
     .tab{border:2px solid var(--muted);background:var(--card);color:var(--text);padding:14px 16px;border-radius:var(--radius);cursor:pointer;font-weight:800}
-    .tab[aria-selected="true"]{background:linear-gradient(180deg,#0f2a2e,#0c2025);border-color:#1a5b61;box-shadow:0 0 0 3px rgba(14,165,164,.18) inset}
+    .tab[aria-selected="true"]{background:#f0fdfa;border-color:#99f6e4}
     .panel{display:none;background:var(--card);border:2px solid var(--muted);border-radius:var(--radius);padding:var(--pad);min-height:calc(100vh - 150px)}
     .panel.active{display:block}
     .label{color:var(--sub);margin-bottom:6px;font-weight:700}
-    input[type="text"],input[data-numeric]{width:100%;background:#0b1215;color:var(--text);border:2px solid var(--muted);border-radius:var(--radius);padding:18px 16px;font-size:1em;outline:none}
-    input[type="text"]:focus,input[data-numeric]:focus{border-color:#1e7a80;box-shadow:0 0 0 4px rgba(14,165,164,.18)}
+    input[type="text"],input[data-numeric]{width:100%;background:#ffffff;color:var(--text);border:2px solid var(--muted);border-radius:var(--radius);padding:18px 16px;font-size:1em;outline:none}
+    input[type="text"]:focus,input[data-numeric]:focus{border-color:#0ea5a4;box-shadow:0 0 0 4px rgba(14,165,164,.18)}
     .row{display:grid;grid-template-columns:1fr;gap:var(--gap)}
-    .btn{display:inline-flex;align-items:center;justify-content:center;width:100%;background:#123039;border:2px solid #1a3a41;color:var(--text);padding:16px;border-radius:var(--radius);cursor:pointer;font-weight:900;letter-spacing:.3px}
-    .btn.acc{background:#0d3b3e;border-color:#166a70}
-    .btn.danger{background:#391b1b;border-color:#6a2f2f}
+    .btn{display:inline-flex;align-items:center;justify-content:center;width:100%;background:#0ea5a4;border:2px solid #0ea5a4;color:#ffffff;padding:16px;border-radius:var(--radius);cursor:pointer;font-weight:900;letter-spacing:.3px}
+    .btn.acc{background:#0ea5a4;border-color:#0ea5a4}
+    .btn.secondary{background:#111827;border-color:#111827}
+    .btn.danger{background:#ef4444;border-color:#ef4444}
     .actions{display:grid;grid-template-columns:1fr 1fr;gap:var(--gap);margin-top:var(--gap)}
     .actions input[data-numeric]{grid-column:1/-1}
     .btn.wide{grid-column:1/-1}
     .list{margin-top:14px;border-top:2px solid var(--muted);padding-top:10px;max-height:38vh;overflow:auto}
     table{width:100%;border-collapse:separate;border-spacing:0 10px;font-size:.95em}
-    th,td{padding:16px;background:#0b1215;border:2px solid var(--muted)}
-    th{color:var(--sub);background:#0e1820;font-weight:800;position:sticky;top:0;z-index:1}
-    .scanner{margin-top:10px;display:none;border:2px dashed #2a3f46;border-radius:var(--radius);padding:8px;position:relative}
-    .scanner.active{display:block;min-height:360px}
-    .scanner-note{font-size:.85em;color:var(--sub);margin-top:6px}
+    th,td{padding:16px;background:#ffffff;border:2px solid var(--muted)}
+    th{color:#334155;background:#f8fafc;font-weight:800;position:sticky;top:0;z-index:1}
+
+    /* Sticky potvrdenie výdaja */
+    .sticky-bar{position:sticky;bottom:0;background:linear-gradient(180deg, rgba(255,255,255,0), #ffffff 50%);padding-top:8px}
+    .sticky-inner{position:sticky;bottom:8px}
+
+    /* Fullscreen scanner overlay */
+    .scan-overlay{position:fixed;inset:0;background:#000000;z-index:9999;display:none;flex-direction:column}
+    .scan-overlay.active{display:flex}
+    .scan-header{display:flex;gap:8px;justify-content:space-between;align-items:center;padding:10px 14px;color:#fff;background:rgba(0,0,0,.4)}
+    .scan-title{font-weight:800}
+    .scan-actions{display:flex;gap:8px}
+    .scan-btn{background:#111827;color:#fff;border:none;border-radius:12px;padding:10px 14px;font-weight:800}
+    .scan-btn[disabled]{opacity:.4}
+    .scan-body{flex:1;display:flex;align-items:center;justify-content:center;padding:8px}
+    .scan-footer{padding:8px;color:#cbd5e1;text-align:center}
+    #fullscreen-scanner{width:100%;max-width:980px;border:2px dashed rgba(255,255,255,.2);border-radius:18px;min-height:60vh}
+
     .rotate-overlay{display:none}
-    @media(orientation:landscape){.rotate-overlay{display:flex;position:fixed;inset:0;background:rgba(0,0,0,.94);color:#fff;align-items:center;justify-content:center;z-index:9999;text-align:center;padding:24px}}
+    @media(orientation:landscape){.rotate-overlay{display:flex;position:fixed;inset:0;background:rgba(0,0,0,.84);color:#fff;align-items:center;justify-content:center;z-index:10000;text-align:center;padding:24px}}
   </style>
 </head>
 <body>
@@ -57,9 +72,7 @@
       <div class="label">CJL číslo</div>
       <div class="row">
         <input id="issue-cjl" type="text" placeholder="Zadaj alebo naskenuj CJL číslo" autocomplete="off" />
-        <div id="issue-scanner" class="scanner" aria-live="polite"></div>
-        <div class="scanner-note" id="issue-scanner-note" style="display:none">Ak sa nespustí kamera: skontroluj povolenia pre kameru v Safari a či stránka beží na HTTPS.</div>
-        <button class="btn acc" id="issue-scan">📷 Skenovať kód</button>
+        <button class="btn acc" id="issue-scan">📷 Skenovať kód (fullscreen)</button>
       </div>
 
       <div class="label">Zóna</div>
@@ -76,9 +89,15 @@
 
       <div class="actions">
         <input id="issue-qty" data-numeric type="text" inputmode="numeric" pattern="[0-9]*" placeholder="Množstvo (celé číslo)" />
-        <button class="btn wide" id="issue-add">✅ Potvr výdaj</button>
         <button class="btn" id="issue-undo">↩️ Undo posledného výdaja</button>
-        <button class="btn" id="issue-share-xlsx">🔗 Zdieľať Excel do Teams (.xlsx)</button>
+        <button class="btn secondary" id="issue-share-xlsx">🔗 Zdieľať Excel do Teams (.xlsx)</button>
+      </div>
+
+      <!-- Sticky pás na konci sekcie s tlačidlom Potvr výdaj na celú šírku -->
+      <div class="sticky-bar">
+        <div class="sticky-inner">
+          <button class="btn" id="issue-add-sticky">✅ Potvr výdaj</button>
+        </div>
       </div>
 
       <div class="list">
@@ -105,8 +124,7 @@
       <div class="label">CJL číslo</div>
       <div class="row">
         <input id="inv-cjl" type="text" placeholder="Zadaj alebo naskenuj CJL číslo" autocomplete="off" />
-        <div id="inv-scanner" class="scanner" aria-live="polite"></div>
-        <button class="btn acc" id="inv-scan">📷 Skenovať kód</button>
+        <button class="btn acc" id="inv-scan">📷 Skenovať kód (fullscreen)</button>
       </div>
       <div class="actions">
         <input id="inv-qty" data-numeric type="text" inputmode="numeric" pattern="[0-9]*" placeholder="Počet (celé číslo)" />
@@ -119,6 +137,21 @@
         </table>
       </div>
     </section>
+  </div>
+
+  <!-- Fullscreen skenovacia vrstva (spoločná pre obe sekcie) -->
+  <div id="scanOverlay" class="scan-overlay" aria-hidden="true">
+    <div class="scan-header">
+      <div class="scan-title">Skenovanie kódu</div>
+      <div class="scan-actions">
+        <button id="torchToggle" class="scan-btn" style="display:none">💡 Prisvietiť</button>
+        <button id="scanClose" class="scan-btn">✕ Zavrieť</button>
+      </div>
+    </div>
+    <div class="scan-body">
+      <div id="fullscreen-scanner"></div>
+    </div>
+    <div class="scan-footer">Zameraj kód do stredu obrazovky. Podporované: QR, Code128/39/93, EAN-13/8, ITF, UPC-A/E, PDF417, DataMatrix.</div>
   </div>
 
   <div class="rotate-overlay">Prosím používaj aplikáciu <b>v režime na výšku</b>. Otoč zariadenie.</div>
@@ -135,12 +168,16 @@
       stopScanner();
     }));
 
-    // --- Scanner lifecycle (QR + čiarové kódy) ---
-    let current = { id:null, instance:null };
+    // --- Fullscreen overlay ---
+    const overlay = document.getElementById('scanOverlay');
+    const overlayClose = document.getElementById('scanClose');
+    const torchToggle = document.getElementById('torchToggle');
+
+    // --- Scanner lifecycle (QR + 1D) ---
+    let current = { id:null, instance:null, torch:false, target:null };
 
     function computeQrbox(viewWidth, viewHeight){
-      const size = Math.floor(Math.min(viewWidth, viewHeight) * 0.82);
-      const edge = Math.max(240, Math.min(380, size));
+      const edge = Math.floor(Math.min(viewWidth, viewHeight) * 0.86);
       return { width: edge, height: edge };
     }
 
@@ -156,11 +193,12 @@
       }catch{ return null; }
     }
 
-    async function startScanner(section){
+    async function startFullscreenScanner(targetInputId){
+      try{ document.activeElement && document.activeElement.blur && document.activeElement.blur(); }catch(e){}
+      overlay.classList.add('active');
+      document.body.style.overflow='hidden';
+
       if(current.instance) await stopScanner();
-      const divId = section + '-scanner';
-      const target = document.getElementById(divId);
-      target.classList.add('active');
 
       const formats = [
         Html5QrcodeSupportedFormats.QR_CODE,
@@ -176,8 +214,8 @@
         Html5QrcodeSupportedFormats.DATA_MATRIX
       ];
 
-      const html5Qr = new Html5Qrcode(divId, { formatsToSupport: formats, verbose: false });
-      current = { id: section, instance: html5Qr };
+      const html5Qr = new Html5Qrcode('fullscreen-scanner', { formatsToSupport: formats, verbose: false });
+      current = { id: 'fullscreen', instance: html5Qr, torch:false, target: targetInputId };
 
       const scanConfig = {
         fps: 15,
@@ -189,45 +227,68 @@
       };
 
       const onScanSuccess = (decodedText) => {
-        const inputId = (section === 'issue') ? 'issue-cjl' : 'inv-cjl';
-        document.getElementById(inputId).value = decodedText;
+        const input = document.getElementById(targetInputId);
+        if(input){ input.value = decodedText; }
         stopScanner();
       };
+
       const onScanError = () => {};
 
       try{
         const backId = await pickBackCamera();
         if(backId){ await html5Qr.start({ deviceId: { exact: backId } }, scanConfig, onScanSuccess, onScanError); }
         else { await html5Qr.start({ facingMode: { exact: 'environment' } }, scanConfig, onScanSuccess, onScanError); }
-        const video = document.querySelector(`#${divId} video`);
+
+        const video = document.querySelector('#fullscreen-scanner video');
         if(video){ video.setAttribute('playsinline','true'); video.setAttribute('webkit-playsinline','true'); video.setAttribute('autoplay','true'); video.setAttribute('muted','true'); }
+
+        // Torch: zobraz ak je k dispozícii a priprav toggle
         try{
-          const cap = html5Qr.getRunningTrackCapabilities && html5Qr.getRunningTrackCapabilities();
-          if(cap && cap.zoom && cap.zoom.max){
-            const constraints = { advanced: [{ zoom: Math.min(1.5, cap.zoom.max) }] };
-            if(html5Qr.applyVideoConstraints) await html5Qr.applyVideoConstraints(constraints);
+          const caps = html5Qr.getRunningTrackCapabilities && html5Qr.getRunningTrackCapabilities();
+          if(caps && (caps.torch || (caps.advanced && 'torch' in caps))){
+            torchToggle.style.display='inline-flex';
+            torchToggle.disabled=false;
+          } else {
+            torchToggle.style.display='none';
           }
-        }catch(e){}
+        }catch(e){ torchToggle.style.display='none'; }
       }catch(e){
         console.error('QR start error:', e);
-        const note = document.getElementById(section+'-scanner-note'); if(note) note.style.display='block';
         alert('Nepodarilo sa spustiť kameru. Skontroluj HTTPS a povolenie kamery v Safari.');
         stopScanner();
       }
     }
 
     async function stopScanner(){
+      torchToggle.textContent='💡 Prisvietiť';
+      current.torch=false;
       if(current.instance){
         try{ await current.instance.stop(); }catch(e){}
         try{ await current.instance.clear(); }catch(e){}
-        const cont = document.getElementById(current.id + '-scanner');
-        if(cont) cont.classList.remove('active');
-        current = { id:null, instance:null };
+        current = { id:null, instance:null, torch:false, target:null };
       }
+      overlay.classList.remove('active');
+      document.body.style.overflow='auto';
     }
 
-    document.getElementById('issue-scan').addEventListener('click', () => startScanner('issue'));
-    document.getElementById('inv-scan').addEventListener('click', () => startScanner('inv'));
+    torchToggle.addEventListener('click', async () => {
+      if(!current.instance) return;
+      try{
+        const caps = current.instance.getRunningTrackCapabilities && current.instance.getRunningTrackCapabilities();
+        if(caps && (caps.torch || (caps.advanced && 'torch' in caps))){
+          current.torch = !current.torch;
+          const constraints = { advanced: [{ torch: current.torch }] };
+          if(current.instance.applyVideoConstraints){ await current.instance.applyVideoConstraints(constraints); }
+          torchToggle.textContent = current.torch ? '💡 Prisvietenie: ON' : '💡 Prisvietiť';
+        } else {
+          alert('Tvoja kamera/prehliadač nepodporuje prisvietenie.');
+        }
+      }catch(e){ console.warn('Torch toggle failed', e); }
+    });
+
+    document.getElementById('issue-scan').addEventListener('click', () => startFullscreenScanner('issue-cjl'));
+    document.getElementById('inv-scan').addEventListener('click', () => startFullscreenScanner('inv-cjl'));
+    document.getElementById('scanClose').addEventListener('click', stopScanner);
 
     // --- Lokálna pamäť (predvoľby) ---
     const PREF_KEY = 'issueDefaults';
@@ -300,9 +361,7 @@
     // --- Undo zásobník pre Vydaj ---
     const issueStack = [];
 
-    // Bezpečne pridať handler až po načítaní DOM – a odstrániť default submit správanie, ak by niekde vznikol implicitný <form>
-    document.getElementById('issue-add').addEventListener('click', (ev) => {
-      if(ev && ev.preventDefault) ev.preventDefault();
+    function confirmIssue(){
       const cjl = document.getElementById('issue-cjl').value.trim();
       const zone = document.getElementById('issue-zone').value.trim();
       const station = document.getElementById('issue-station').value.trim();
@@ -317,8 +376,9 @@
       issueStack.push({ row, restore:{ cjl, zone, station, requester, issuer, qty } });
       document.getElementById('issue-cjl').value='';
       saveDefaults();
-    });
+    }
 
+    document.getElementById('issue-add-sticky').addEventListener('click', (e)=>{ e.preventDefault(); confirmIssue(); });
     document.getElementById('issue-undo').addEventListener('click', () => {
       const tbody = document.querySelector('#issue-table tbody');
       if(!tbody.firstChild || issueStack.length===0){ alert('Nie je čo vrátiť.'); return; }
@@ -338,7 +398,7 @@
     document.getElementById('issue-share-xlsx').addEventListener('click', () => shareXlsx('issue-table', 'vydaj.xlsx'));
 
     // Enter = Potvr výdaj
-    document.getElementById('issue-cjl').addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ document.getElementById('issue-add').click(); }});
+    document.getElementById('issue-cjl').addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ e.preventDefault(); confirmIssue(); }});
 
     // Inventúra add
     document.getElementById('inv-add').addEventListener('click', () => {
