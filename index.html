@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>Sklad – Vydaj & Inventúra</title>
+  <title>Sklad – Vydaj & Inventúra (v9 – rýchle QR, torch, sticky)</title>
   <meta name="theme-color" content="#0ea5a4" />
   <link rel="preconnect" href="https://unpkg.com" crossorigin>
   <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
@@ -45,12 +45,16 @@
     .scan-overlay.active{display:flex}
     .scan-header{display:flex;gap:8px;justify-content:space-between;align-items:center;padding:10px 14px;color:#fff;background:rgba(0,0,0,.4)}
     .scan-title{font-weight:800}
-    .scan-actions{display:flex;gap:8px}
+    .scan-actions{display:flex;gap:8px;align-items:center}
     .scan-btn{background:#111827;color:#fff;border:none;border-radius:12px;padding:10px 14px;font-weight:800}
     .scan-btn[disabled]{opacity:.4}
+    .scan-mode{background:#0ea5a4}
     .scan-body{flex:1;display:flex;align-items:center;justify-content:center;padding:8px}
     .scan-footer{padding:8px;color:#cbd5e1;text-align:center}
     #fullscreen-scanner{width:100%;max-width:980px;border:2px dashed rgba(255,255,255,.2);border-radius:18px;min-height:60vh}
+
+    .error{border-color:#ef4444 !important; box-shadow:0 0 0 4px rgba(239,68,68,.2) !important}
+    .hint{color:#ef4444;font-size:.9em}
 
     .rotate-overlay{display:none}
     @media(orientation:landscape){.rotate-overlay{display:flex;position:fixed;inset:0;background:rgba(0,0,0,.84);color:#fff;align-items:center;justify-content:center;z-index:10000;text-align:center;padding:24px}}
@@ -69,31 +73,31 @@
 
     <!-- Vydaj -->
     <section class="panel active" id="panel-issue" role="tabpanel" aria-labelledby="tab-issue">
-      <div class="label">CJL číslo</div>
+      <div class="label">CJL číslo <span class="hint" id="req-issue-cjl" hidden>* povinné</span></div>
       <div class="row">
-        <input id="issue-cjl" type="text" placeholder="Zadaj alebo naskenuj CJL číslo" autocomplete="off" />
+        <input id="issue-cjl" type="text" placeholder="Zadaj alebo naskenuj CJL číslo" autocomplete="off" required />
         <button class="btn acc" id="issue-scan">📷 Skenovať kód (fullscreen)</button>
       </div>
 
-      <div class="label">Zóna</div>
-      <div class="row"><input id="issue-zone" type="text" placeholder="Zadaj zónu" autocomplete="off" /></div>
+      <div class="label">Zóna <span class="hint" id="req-issue-zone" hidden>* povinné</span></div>
+      <div class="row"><input id="issue-zone" type="text" placeholder="Zadaj zónu" autocomplete="off" required /></div>
 
-      <div class="label">Stanica</div>
-      <div class="row"><input id="issue-station" type="text" placeholder="Zadaj stanicu" autocomplete="off" /></div>
+      <div class="label">Stanica <span class="hint" id="req-issue-station" hidden>* povinné</span></div>
+      <div class="row"><input id="issue-station" type="text" placeholder="Zadaj stanicu" autocomplete="off" required /></div>
 
-      <div class="label">Žiadateľ CDSID</div>
-      <div class="row"><input id="issue-requester" type="text" placeholder="napr. ab1234" autocomplete="off" /></div>
+      <div class="label">Žiadateľ CDSID <span class="hint" id="req-issue-requester" hidden>* povinné</span></div>
+      <div class="row"><input id="issue-requester" type="text" placeholder="napr. ab1234" autocomplete="off" required /></div>
 
-      <div class="label">Vydal CDSID</div>
-      <div class="row"><input id="issue-issuer" type="text" placeholder="napr. cd5678" autocomplete="off" /></div>
+      <div class="label">Vydal CDSID <span class="hint" id="req-issue-issuer" hidden>* povinné</span></div>
+      <div class="row"><input id="issue-issuer" type="text" placeholder="napr. cd5678" autocomplete="off" required /></div>
 
       <div class="actions">
-        <input id="issue-qty" data-numeric type="text" inputmode="numeric" pattern="[0-9]*" placeholder="Množstvo (celé číslo)" />
+        <div class="label">Množstvo (celé číslo) <span class="hint" id="req-issue-qty" hidden>* povinné</span></div>
+        <input id="issue-qty" data-numeric type="text" inputmode="numeric" pattern="[0-9]*" placeholder="Množstvo (celé číslo)" required />
         <button class="btn" id="issue-undo">↩️ Undo posledného výdaja</button>
         <button class="btn secondary" id="issue-share-xlsx">🔗 Zdieľať Excel do Teams (.xlsx)</button>
       </div>
 
-      <!-- Sticky pás na konci sekcie s tlačidlom Potvr výdaj na celú šírku -->
       <div class="sticky-bar">
         <div class="sticky-inner">
           <button class="btn" id="issue-add-sticky">✅ Potvr výdaj</button>
@@ -119,15 +123,16 @@
       </div>
     </section>
 
-    <!-- Inventúra (ponechaná základná) -->
+    <!-- Inventúra -->
     <section class="panel" id="panel-inventory" role="tabpanel" aria-labelledby="tab-inventory">
-      <div class="label">CJL číslo</div>
+      <div class="label">CJL číslo <span class="hint" id="req-inv-cjl" hidden>* povinné</span></div>
       <div class="row">
-        <input id="inv-cjl" type="text" placeholder="Zadaj alebo naskenuj CJL číslo" autocomplete="off" />
+        <input id="inv-cjl" type="text" placeholder="Zadaj alebo naskenuj CJL číslo" autocomplete="off" required />
         <button class="btn acc" id="inv-scan">📷 Skenovať kód (fullscreen)</button>
       </div>
       <div class="actions">
-        <input id="inv-qty" data-numeric type="text" inputmode="numeric" pattern="[0-9]*" placeholder="Počet (celé číslo)" />
+        <div class="label">Počet (celé číslo) <span class="hint" id="req-inv-qty" hidden>* povinné</span></div>
+        <input id="inv-qty" data-numeric type="text" inputmode="numeric" pattern="[0-9]*" placeholder="Počet (celé číslo)" required />
         <button class="btn" id="inv-add">➕ Pridať do zoznamu</button>
       </div>
       <div class="list">
@@ -139,11 +144,12 @@
     </section>
   </div>
 
-  <!-- Fullscreen skenovacia vrstva (spoločná pre obe sekcie) -->
+  <!-- Fullscreen skener -->
   <div id="scanOverlay" class="scan-overlay" aria-hidden="true">
     <div class="scan-header">
       <div class="scan-title">Skenovanie kódu</div>
       <div class="scan-actions">
+        <button id="modeToggle" class="scan-btn scan-mode" title="Rýchly režim QR vs. Všetky kódy">⚡ Režim: QR (rýchly)</button>
         <button id="torchToggle" class="scan-btn" style="display:none">💡 Prisvietiť</button>
         <button id="scanClose" class="scan-btn">✕ Zavrieť</button>
       </div>
@@ -151,13 +157,12 @@
     <div class="scan-body">
       <div id="fullscreen-scanner"></div>
     </div>
-    <div class="scan-footer">Zameraj kód do stredu obrazovky. Podporované: QR, Code128/39/93, EAN-13/8, ITF, UPC-A/E, PDF417, DataMatrix.</div>
+    <div class="scan-footer">Tip: drž QR kód v strede a vo vzdialenosti ~10–20 cm. V tmavom prostredí zapni 💡.</div>
   </div>
 
   <div class="rotate-overlay">Prosím používaj aplikáciu <b>v režime na výšku</b>. Otoč zariadenie.</div>
 
   <script>
-    // --- Tabs ---
     const tabs = document.querySelectorAll('.tab');
     const panels = document.querySelectorAll('.panel');
     tabs.forEach(t => t.addEventListener('click', () => {
@@ -168,29 +173,33 @@
       stopScanner();
     }));
 
-    // --- Fullscreen overlay ---
     const overlay = document.getElementById('scanOverlay');
     const overlayClose = document.getElementById('scanClose');
     const torchToggle = document.getElementById('torchToggle');
+    const modeToggle = document.getElementById('modeToggle');
 
-    // --- Scanner lifecycle (QR + 1D) ---
-    let current = { id:null, instance:null, torch:false, target:null };
+    let current = { id:null, instance:null, torch:false, target:null, fastQr:true };
 
     function computeQrbox(viewWidth, viewHeight){
-      const edge = Math.floor(Math.min(viewWidth, viewHeight) * 0.86);
-      return { width: edge, height: edge };
+      // menšie ako fullscreen -> menej výpočtov, rýchlejšie dekódovanie
+      const edge = Math.floor(Math.min(viewWidth, viewHeight) * 0.72);
+      return { width: Math.max(260, Math.min(420, edge)), height: Math.max(260, Math.min(420, edge)) };
     }
 
     async function pickBackCamera(){
       try{
         const devices = await Html5Qrcode.getCameras();
         if(!devices || !devices.length) return null;
-        const byLabel = devices.filter(d => /back|rear|environment|zadn/i.test(d.label || ''));
-        if(byLabel.length) return byLabel[byLabel.length - 1].id;
-        const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
-        if(isIOS && devices.length >= 2) return devices[1].id;
-        return devices[devices.length - 1].id;
+        const byLabel = devices.filter(d => /back|rear|environment|zadn|wide/i.test(d.label || ''));
+        return (byLabel[0] || devices[devices.length - 1]).id;
       }catch{ return null; }
+    }
+
+    function buildFormats(){
+      if(current.fastQr){
+        return [ Html5QrcodeSupportedFormats.QR_CODE ]; // najrýchlejšie len QR
+      }
+      return [ Html5QrcodeSupportedFormats.QR_CODE, Html5QrcodeSupportedFormats.CODE_128, Html5QrcodeSupportedFormats.CODE_39, Html5QrcodeSupportedFormats.CODE_93, Html5QrcodeSupportedFormats.EAN_13, Html5QrcodeSupportedFormats.EAN_8, Html5QrcodeSupportedFormats.UPC_A, Html5QrcodeSupportedFormats.UPC_E, Html5QrcodeSupportedFormats.ITF, Html5QrcodeSupportedFormats.PDF_417, Html5QrcodeSupportedFormats.DATA_MATRIX ];
     }
 
     async function startFullscreenScanner(targetInputId){
@@ -200,57 +209,44 @@
 
       if(current.instance) await stopScanner();
 
-      const formats = [
-        Html5QrcodeSupportedFormats.QR_CODE,
-        Html5QrcodeSupportedFormats.CODE_128,
-        Html5QrcodeSupportedFormats.CODE_39,
-        Html5QrcodeSupportedFormats.CODE_93,
-        Html5QrcodeSupportedFormats.EAN_13,
-        Html5QrcodeSupportedFormats.EAN_8,
-        Html5QrcodeSupportedFormats.UPC_A,
-        Html5QrcodeSupportedFormats.UPC_E,
-        Html5QrcodeSupportedFormats.ITF,
-        Html5QrcodeSupportedFormats.PDF_417,
-        Html5QrcodeSupportedFormats.DATA_MATRIX
-      ];
-
-      const html5Qr = new Html5Qrcode('fullscreen-scanner', { formatsToSupport: formats, verbose: false });
-      current = { id: 'fullscreen', instance: html5Qr, torch:false, target: targetInputId };
+      const html5Qr = new Html5Qrcode('fullscreen-scanner', { useBarCodeDetectorIfSupported: true, verbose: false });
+      current = { id: 'fullscreen', instance: html5Qr, torch:false, target: targetInputId, fastQr: current.fastQr };
 
       const scanConfig = {
-        fps: 15,
+        fps: 18,
         qrbox: computeQrbox,
         disableFlip: true,
         aspectRatio: 1.3333,
         rememberLastUsedCamera: true,
-        videoConstraints: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: { exact: 'environment' } }
+        videoConstraints: { width: { ideal: 1920 }, height: { ideal: 1080 }, facingMode: { exact: 'environment' } },
+        formatsToSupport: buildFormats()
       };
 
       const onScanSuccess = (decodedText) => {
         const input = document.getElementById(targetInputId);
-        if(input){ input.value = decodedText; }
+        if(input){ input.value = decodedText; input.classList.remove('error'); const hint=document.getElementById('req-'+targetInputId); if(hint) hint.hidden=true; }
         stopScanner();
       };
 
-      const onScanError = () => {};
-
       try{
         const backId = await pickBackCamera();
-        if(backId){ await html5Qr.start({ deviceId: { exact: backId } }, scanConfig, onScanSuccess, onScanError); }
-        else { await html5Qr.start({ facingMode: { exact: 'environment' } }, scanConfig, onScanSuccess, onScanError); }
+        if(backId){ await html5Qr.start({ deviceId: { exact: backId } }, scanConfig, onScanSuccess); }
+        else { await html5Qr.start({ facingMode: { exact: 'environment' } }, scanConfig, onScanSuccess); }
 
         const video = document.querySelector('#fullscreen-scanner video');
         if(video){ video.setAttribute('playsinline','true'); video.setAttribute('webkit-playsinline','true'); video.setAttribute('autoplay','true'); video.setAttribute('muted','true'); }
 
-        // Torch: zobraz ak je k dispozícii a priprav toggle
+        // Po štarte nastav kontinuálne ostrenie + mierny zoom (ak je podporovaný) – zvyšuje šancu rýchlej detekcie
         try{
           const caps = html5Qr.getRunningTrackCapabilities && html5Qr.getRunningTrackCapabilities();
-          if(caps && (caps.torch || (caps.advanced && 'torch' in caps))){
-            torchToggle.style.display='inline-flex';
-            torchToggle.disabled=false;
-          } else {
-            torchToggle.style.display='none';
+          const constraints = { advanced: [] };
+          if(caps && caps.focusMode){ constraints.focusMode = 'continuous'; }
+          if(caps && caps.exposureMode){ constraints.exposureMode = 'continuous'; }
+          if(caps && caps.zoom && caps.zoom.max){ constraints.advanced.push({ zoom: Math.min(2.0, caps.zoom.max) }); }
+          if(Object.keys(constraints).length || (constraints.advanced && constraints.advanced.length)){
+            await html5Qr.applyVideoConstraints(constraints);
           }
+          if(caps && (caps.torch || (caps.advanced && 'torch' in caps))){ torchToggle.style.display='inline-flex'; torchToggle.disabled=false; } else { torchToggle.style.display='none'; }
         }catch(e){ torchToggle.style.display='none'; }
       }catch(e){
         console.error('QR start error:', e);
@@ -265,7 +261,7 @@
       if(current.instance){
         try{ await current.instance.stop(); }catch(e){}
         try{ await current.instance.clear(); }catch(e){}
-        current = { id:null, instance:null, torch:false, target:null };
+        current.instance = null;
       }
       overlay.classList.remove('active');
       document.body.style.overflow='auto';
@@ -278,12 +274,22 @@
         if(caps && (caps.torch || (caps.advanced && 'torch' in caps))){
           current.torch = !current.torch;
           const constraints = { advanced: [{ torch: current.torch }] };
-          if(current.instance.applyVideoConstraints){ await current.instance.applyVideoConstraints(constraints); }
+          if(current.instance.applyVideoConstraints) await current.instance.applyVideoConstraints(constraints);
           torchToggle.textContent = current.torch ? '💡 Prisvietenie: ON' : '💡 Prisvietiť';
-        } else {
-          alert('Tvoja kamera/prehliadač nepodporuje prisvietenie.');
-        }
+        } else { alert('Tvoja kamera/prehliadač nepodporuje prisvietenie.'); }
       }catch(e){ console.warn('Torch toggle failed', e); }
+    });
+
+    modeToggle.addEventListener('click', async () => {
+      current.fastQr = !current.fastQr;
+      modeToggle.textContent = current.fastQr ? '⚡ Režim: QR (rýchly)' : '📦 Režim: Všetky kódy';
+      if(current.instance){
+        try{ await current.instance.applyVideoConstraints({}); }catch(e){}
+        // reštart, aby sa uplatnili nové formatsToSupport
+        const tgt = current.target || 'issue-cjl';
+        await stopScanner();
+        startFullscreenScanner(tgt);
+      }
     });
 
     document.getElementById('issue-scan').addEventListener('click', () => startFullscreenScanner('issue-cjl'));
@@ -312,11 +318,21 @@
         if(d.issuer) document.getElementById('issue-issuer').value = d.issuer;
       }catch(e){}
     }
-    ['issue-zone','issue-station','issue-requester','issue-issuer'].forEach(id => {
-      document.addEventListener('input', (ev)=>{ if(ev.target && ev.target.id===id) saveDefaults(); });
+    ['issue-zone','issue-station','issue-requester','issue-issuer','issue-cjl','issue-qty','inv-cjl','inv-qty'].forEach(id => {
+      document.addEventListener('input', (ev)=>{ if(ev.target && ev.target.id===id){ ev.target.classList.remove('error'); const hint=document.getElementById('req-'+id); if(hint) hint.hidden=true; if(['issue-zone','issue-station','issue-requester','issue-issuer'].includes(id)) saveDefaults(); }});
     });
 
-    // --- Pomocné ---
+    function requireFilled(ids){
+      let ok=true;
+      ids.forEach(id=>{
+        const el=document.getElementById(id); const hint=document.getElementById('req-'+id);
+        if(!el) return;
+        const isEmpty = (el.getAttribute('data-numeric')!=null) ? !/^[0-9]+$/.test(el.value.trim()) || el.value.trim()==='' : el.value.trim()==='';
+        if(isEmpty){ el.classList.add('error'); if(hint) hint.hidden=false; if(ok) el.focus(); ok=false; }
+      });
+      return ok;
+    }
+
     function addRow(tableId, values){
       const tbody = document.querySelector('#' + tableId + ' tbody');
       const tr = document.createElement('tr');
@@ -353,23 +369,21 @@
       }catch(e){ console.error(e); alert('Zdieľanie do Teams zlyhalo.'); }
     }
 
-    // --- Strict integer input pre Množstvo ---
     function enforceIntegerInput(el){ el.addEventListener('input', (e)=>{ e.target.value = e.target.value.replace(/\D+/g,''); }); el.addEventListener('blur', (e)=>{ if(e.target.value==='') e.target.value='0'; }); }
     enforceIntegerInput(document.getElementById('issue-qty'));
     enforceIntegerInput(document.getElementById('inv-qty'));
 
-    // --- Undo zásobník pre Vydaj ---
     const issueStack = [];
 
     function confirmIssue(){
+      const requiredIds = ['issue-cjl','issue-zone','issue-station','issue-requester','issue-issuer','issue-qty'];
+      if(!requireFilled(requiredIds)) return;
       const cjl = document.getElementById('issue-cjl').value.trim();
       const zone = document.getElementById('issue-zone').value.trim();
       const station = document.getElementById('issue-station').value.trim();
       const requester = document.getElementById('issue-requester').value.trim();
       const issuer = document.getElementById('issue-issuer').value.trim();
-      let qty = document.getElementById('issue-qty').value.trim();
-      qty = qty.replace(/\D+/g,''); if(qty==='') qty='1';
-      if(!cjl){ alert('Zadaj CJL číslo.'); return; }
+      const qty = document.getElementById('issue-qty').value.trim();
       const t = nowParts();
       const row = [t.date, t.time, cjl, qty, zone, station, requester, issuer];
       addRow('issue-table', row);
@@ -397,21 +411,17 @@
 
     document.getElementById('issue-share-xlsx').addEventListener('click', () => shareXlsx('issue-table', 'vydaj.xlsx'));
 
-    // Enter = Potvr výdaj
     document.getElementById('issue-cjl').addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ e.preventDefault(); confirmIssue(); }});
 
-    // Inventúra add
     document.getElementById('inv-add').addEventListener('click', () => {
+      if(!requireFilled(['inv-cjl','inv-qty'])) return;
       const cjl = document.getElementById('inv-cjl').value.trim();
-      let qty = document.getElementById('inv-qty').value.trim();
-      qty = qty.replace(/\D+/g,''); if(qty==='') qty='0';
-      if(!cjl){ alert('Zadaj CJL číslo.'); return; }
+      const qty = document.getElementById('inv-qty').value.trim();
       const t = nowParts();
       addRow('inv-table', [`${t.date} ${t.time}`, cjl, qty]);
       document.getElementById('inv-cjl').value='';
     });
 
-    // Inicializácia
     loadDefaults();
     if(!document.getElementById('issue-qty').value) document.getElementById('issue-qty').value='1';
 
